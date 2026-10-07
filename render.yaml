@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: bot-whatsapp-2
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # --- Conexión por QR (Baileys) ---
+      - key: BOT_NAME
+        value: Bot Tramites
+      # Vinculación por CÓDIGO de número (más confiable que el QR).
+      - key: PAIRING_PHONE
+        sync: false
+      # --- Administrador (opcional: solo canal de comandos) ---
+      - key: ADMIN_PHONE
+        sync: false
+      # Avisos automáticos al administrador: DESACTIVADOS por defecto.
+      - key: ADMIN_NOTIFICATIONS_ENABLED
+        value: "false"
+      # --- IA (Groq) ---
+      - key: GROQ_API_KEY
+        sync: false
+      # --- Consulta de cédula (opcional) ---
+      - key: CEDULA_APP_ID
+        sync: false
+      - key: CEDULA_TOKEN
+        sync: false
+      # --- Respaldo de sesiones en Supabase (opcional) ---
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

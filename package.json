@@ -1,0 +1,21 @@
+{
+  "name": "bot-whatsapp-2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Asistente virtual de asesoría para WhatsApp (conexión por QR con Baileys)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4"
+  }
+}

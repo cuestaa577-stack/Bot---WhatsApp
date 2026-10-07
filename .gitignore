@@ -1,0 +1,8 @@
+node_modules/
+.env
+npm-debug.log*
+.DS_Store
+clientes.json
+sesiones.json
+auth_baileys/
+*.log
