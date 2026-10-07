@@ -891,7 +891,7 @@ function esPreguntaPaises(texto) {
 
 function esPreguntaRequisitos(texto) {
   const t = normalizar(texto);
-  return /que necesito|requisitos|que debo enviar|que documentos necesito para/.test(
+  return /que necesito|requisitos|que debo enviar|que debo mandar|que tengo que enviar|que tengo que mandar|que hay que enviar|que hay que mandar|que papeles|que documentos necesito|que documentos debo|que documentos hay que|que datos necesitan|que datos debo|que datos hay que|que me piden|que informacion necesitan|que informacion debo|que tengo que dar|que debo dar|que hay que dar/.test(
     t
   );
 }
@@ -1292,7 +1292,7 @@ function respuestaFAQ(texto) {
     return "Sí, puedes consultar varios trámites. Los revisamos uno por uno.";
 
   if (esPreguntaRequisitos(texto))
-    return "Solo necesitamos que nos confirmes qué trámite necesitas y nos compartas tus datos personales. Te guiamos paso a paso, es muy sencillo. ✅";
+    return "De acuerdo. 👍 Ya le digo a un gestor que te envíe los requisitos correspondientes para tu trámite.";
 
   return null;
 }
@@ -1557,7 +1557,7 @@ REGLA PRINCIPAL DE CONOCIMIENTO:
 - Los precios estructurados del sistema son datos exactos y no pueden ser modificados por la IA.
 - Responde la pregunta concreta del cliente; no envíes todos los precios ni toda la información si no la pidió.
 - Si el cliente pregunta de forma ambigua y faltan datos indispensables (por ejemplo, país o grado), pide únicamente ese dato.
-- No inventes ni enumeres requisitos. Si las instrucciones dicen que los requisitos los informa un gestor, dilo así.
+- No inventes ni enumeres requisitos. Si el cliente pregunta por requisitos, documentos, papeles o qué debe enviar/mandar/dar, NO los listes: responde EXACTAMENTE con este mensaje: "De acuerdo. 👍 Ya le digo a un gestor que te envíe los requisitos correspondientes para tu trámite."
 - NUNCA generes "pasos a seguir", listas de documentos, instrucciones de cómo agendar una cita, ni menciones oficinas o portales oficiales (ej. Registraduría). Eso siempre lo explica el gestor cuando contacte al cliente.
 - Responde breve (ideal 3-4 líneas). Si el cliente pregunta cómo funciona el proceso, comparte el PROCESO OFICIAL tal cual.
 - Interpreta prioritariamente el español venezolano, incluidos modismos, expresiones coloquiales y formas informales de preguntar. Identifica lo que el cliente quiere decir; si no está claro, pide una aclaración breve.
@@ -1597,7 +1597,7 @@ PREGUNTAS Y RESPUESTAS FRECUENTES OFICIALES (información vigente; úsala para r
 - Países: Colombia, Chile, Ecuador y cualquier país del mundo; el servicio está pensado especialmente para venezolanos en el extranjero.
 - País emisor del documento: solo gestionamos documentos venezolanos. Estar en Colombia, Chile o Ecuador, o ser venezolano, no significa que tramitemos cédulas emitidas por esos países. Si solicitan cédula colombiana, chilena o ecuatoriana, responde: "Bueno, te comento: solo gestionamos documentos venezolanos. Lo siento, no tramitamos cédulas colombianas, chilenas ni ecuatorianas."
 - Métodos de pago: Colombia Nequi, Bancolombia o transferencia; Chile transferencia bancaria o Caja Vecina; Ecuador Banco Pichincha o transferencia; para otros países se coordina la mejor opción con el cliente.
-- Requisitos para empezar: solo confirmar el trámite y compartir los datos personales; el detalle de los requisitos lo informa el gestor al contactar al cliente.
+- Requisitos: NO los informa el bot. Si el cliente pregunta por requisitos, documentos, papeles o qué debe enviar/mandar/dar, responde EXACTAMENTE: "De acuerdo. 👍 Ya le digo a un gestor que te envíe los requisitos correspondientes para tu trámite."
 - Verificación de cédula: disponible; el cliente envía su número de cédula y se verifica en el sistema.
 
 INSTRUCCIONES VIGENTES DEL ADMINISTRADOR:
@@ -2071,7 +2071,7 @@ function contieneContenidoProhibido(texto) {
 }
 
 function respuestaSeguraGestor() {
-  return "Los pasos y requisitos exactos te los confirma directamente el gestor al contactarte. ¿Quieres que te comunique con uno?";
+  return "De acuerdo. 👍 Ya le digo a un gestor que te contacte y te envíe los requisitos correspondientes para tu trámite.";
 }
 
 function respuestaNoDisponible() {
