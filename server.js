@@ -122,7 +122,18 @@ const PREGUNTA_LICENCIA = "🚗 ¿En qué grado de licencia estás interesado/a 
 // Respaldo durable de sesiones en Supabase (tabla habla_state).
 // Si no está configurado, el bot sigue usando solo el respaldo local.
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
+// La clave de Supabase puede venir con distintos nombres según cómo se
+// configure (Render, integración de Supabase, etc.). Se aceptan todos y se
+// toma el primero disponible, dando prioridad a las que SÍ pueden escribir:
+//   SUPABASE_KEY (recomendado) · SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY
+//   (clave secreta, puede escribir) · SUPABASE_PUBLISHABLE_KEY (pública, solo lectura).
+const SUPABASE_KEY =
+  process.env.SUPABASE_KEY ||
+  process.env.SUPABASE_SECRET_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  "";
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Las sesiones viven en memoria y se respaldan cada minuto en sesiones.json,
