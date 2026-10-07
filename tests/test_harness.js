@@ -34,6 +34,7 @@ const mockBaileys = {
   default: makeWASocket,
   makeWASocket,
   makeCacheableSignalKeyStore: (keys) => keys,
+  Browsers: { ubuntu: () => ["Ubuntu", "Chrome", "1.0.0"] },
   useMultiFileAuthState: async () => ({
     state: { creds: {}, keys: {} },
     saveCreds: async () => {},
@@ -61,7 +62,7 @@ process.env.SELF_URL = "";
 // ------------------------------------------------------------
 // 3) Cargar el bot
 // ------------------------------------------------------------
-require("./server.js");
+require("../server.js");
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 

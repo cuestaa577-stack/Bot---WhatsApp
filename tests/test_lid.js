@@ -26,6 +26,7 @@ const mockBaileys = {
   default: makeWASocket,
   makeWASocket,
   makeCacheableSignalKeyStore: (k) => k,
+  Browsers: { ubuntu: () => ["Ubuntu", "Chrome", "1.0.0"] },
   useMultiFileAuthState: async () => ({ state: { creds: {}, keys: {} }, saveCreds: async () => {} }),
   DisconnectReason: { loggedOut: 401, connectionClosed: 428 },
   downloadMediaMessage: async () => Buffer.from("x"),
@@ -43,7 +44,7 @@ process.env.ADMIN_NOTIFICATIONS_ENABLED = "false";
 process.env.AUTH_DIR = path.join(__dirname, "auth_test_lid");
 process.env.SELF_URL = "";
 
-require("./server.js");
+require("../server.js");
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {

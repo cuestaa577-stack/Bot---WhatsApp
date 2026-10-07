@@ -103,7 +103,10 @@ Abre el puerto del servicio y entra a `http://TU-IP:10000/qr` para escanear el Q
 |---|---|---|
 | `GET` | `/` | Estado del bot (JSON) |
 | `GET` | `/health` | Salud del servidor |
+| `GET` | `/estado` | Página de estado legible (¿el bot responde?) |
 | `GET` | `/qr` | Página para escanear el código QR |
+| `GET` | `/pair` | Vincular con el código de 8 dígitos (por número) |
+| `GET` | `/selftest` | Envía un mensaje de prueba para verificar el envío |
 
 ---
 
@@ -146,11 +149,15 @@ tengas que reiniciarlo a mano:
 
 Abre en el navegador:
 
+- `https://TU-SERVICIO/estado` → página legible: dice de un vistazo si el bot
+  está conectado, cuándo fue la última conexión y si la sesión está guardada.
 - `https://TU-SERVICIO/` → JSON con `status`, `intentosReconexion`,
   `ultimaConexion`, `ultimoMensajeRecibido`, `sesionGuardada`, `uptimeSegundos`.
 - `https://TU-SERVICIO/health` → salud resumida.
 - `https://TU-SERVICIO/qr` → si muestra un QR, la sesión se perdió y hay que
   volver a escanear; si dice "Bot conectado", la conexión está bien.
+- `https://TU-SERVICIO/pair` → código de 8 dígitos para vincular por número
+  (alternativa al QR, más confiable).
 
 Interpretación de `status`:
 

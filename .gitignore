@@ -6,3 +6,6 @@ clientes.json
 sesiones.json
 auth_baileys/
 *.log
+
+# Artefactos de las pruebas (sesiones temporales)
+tests/auth_*/

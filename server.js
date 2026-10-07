@@ -3144,6 +3144,35 @@ app.get("/health", (req, res) => {
 });
 
 // Página para escanear el código QR desde el teléfono.
+app.get("/estado", (req, res) => {
+  const base =
+    "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1a3a;color:#fff;margin:0;padding:1.5rem;min-height:100vh;box-sizing:border-box";
+  const card = "max-width:560px;margin:0 auto;background:#122348;border-radius:18px;padding:1.6rem";
+  const mapa = {
+    conectado: { icono: "✅", txt: "Conectado y respondiendo", color: "#1f8a4c" },
+    esperando_qr: { icono: "📲", txt: "Falta vincular el dispositivo (escanea el QR)", color: "#c9821f" },
+    desconectado: { icono: "🔁", txt: "Desconectado; reconectando automáticamente…", color: "#c94b1f" },
+    iniciando: { icono: "⏳", txt: "Iniciando…", color: "#5b6b8c" },
+  };
+  const e = mapa[estadoConexion] || mapa.iniciando;
+  const fila = (k, v) => `<tr><td style="padding:.4rem 0;opacity:.7">${k}</td><td style="padding:.4rem 0;text-align:right;font-weight:600">${v}</td></tr>`;
+  return res.send(
+    `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="10"><title>Estado del bot</title></head><body style="${base}"><div style="${card}">
+      <div style="text-align:center"><div style="font-size:3rem">${e.icono}</div><h1 style="margin:.3rem 0">${e.txt}</h1><div style="display:inline-block;background:${e.color};border-radius:999px;padding:.3rem .8rem;font-size:.8rem">status: ${estadoConexion}</div></div>
+      <table style="width:100%;border-collapse:collapse;margin-top:1.2rem;font-size:.95rem">
+        ${fila("Reintentos de conexión", intentosReconexion)}
+        ${fila("Reconectando ahora", reconectando ? "Sí" : "No")}
+        ${fila("Última conexión", ultimaConexion ? new Date(ultimaConexion).toLocaleString("es-CO") : "—")}
+        ${fila("Último mensaje recibido", ultimoMensajeRecibido ? new Date(ultimoMensajeRecibido).toLocaleString("es-CO") : "—")}
+        ${fila("Sesión guardada", fs.existsSync(AUTH_DIR) && fs.readdirSync(AUTH_DIR).some((f) => f.endsWith(".json")) ? "Sí" : "No")}
+        ${fila("Tiempo encendido", Math.round(process.uptime() / 60) + " min")}
+      </table>
+      <p style="text-align:center;margin-top:1.2rem"><a href="/qr" style="color:#7fb2ff">Ir a la página del QR</a></p>
+      <p style="opacity:.5;font-size:.8rem;text-align:center">Esta página se actualiza sola cada 10 segundos.</p>
+    </div></body></html>`
+  );
+});
+
 app.get("/qr", async (req, res) => {
   // Sin caché: el navegador SIEMPRE pide el QR más reciente (nunca uno viejo).
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
