@@ -85,7 +85,12 @@ const ADMIN_NUMBERS = Array.from(new Set([
 // vincular por CÓDIGO de 8 dígitos — la opción "Vincular con el número del
 // teléfono" de WhatsApp. Es MÁS CONFIABLE que el QR porque no depende de la
 // cámara ni de escanear a tiempo. Por defecto se usa el número del admin.
-const PAIRING_PHONE = String(process.env.PAIRING_PHONE || ADMIN_NUMBER || "").replace(/\D/g, "");
+// Número por defecto del bot (para poder vincular por código sin configurar
+// nada en el panel del hosting). Se puede sobreescribir con PAIRING_PHONE.
+const PAIRING_PHONE_DEFECTO = "573226662517";
+const PAIRING_PHONE = String(
+  process.env.PAIRING_PHONE || ADMIN_NUMBER || PAIRING_PHONE_DEFECTO
+).replace(/\D/g, "");
 
 // Avisos automáticos al administrador por WhatsApp (copia de cada aviso:
 // primer mensaje, alta prioridad, solicitud de asesor, errores, bloqueos).
@@ -2854,8 +2859,9 @@ function crearCacheReintentos() {
 // Pide a WhatsApp un código de 8 dígitos para vincular el dispositivo usando
 // el número de teléfono (opción "Vincular con el número del teléfono").
 // Es el método más confiable: no depende de la cámara ni de escanear a tiempo.
-async function solicitarCodigoVinculacion() {
-  if (!PAIRING_PHONE) {
+async function solicitarCodigoVinculacion(telefono) {
+  const tel = String(telefono || PAIRING_PHONE || "").replace(/\D/g, "");
+  if (!tel) {
     return { ok: false, error: "Falta configurar PAIRING_PHONE (o ADMIN_PHONE)." };
   }
   if (!sock) {
@@ -2867,7 +2873,7 @@ async function solicitarCodigoVinculacion() {
     }
   } catch (_) {}
   try {
-    const codigo = await sock.requestPairingCode(PAIRING_PHONE);
+    const codigo = await sock.requestPairingCode(tel);
     pairingCodeActual = codigo;
     console.log(
       `\n🔑 Código de vinculación por número: ${codigo}\n` +
@@ -3327,6 +3333,9 @@ app.get("/pair", async (req, res) => {
   res.set("Expires", "0");
   const estilo = "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;padding:2.5rem;background:#0b1a3a;color:#fff;min-height:100vh;box-sizing:border-box";
 
+  // Permite indicar el número por URL: /pair?to=573226662517
+  const toOverride = String(req.query.to || "").replace(/\D/g, "");
+
   if (estadoConexion === "conectado") {
     return res.send(
       `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Bot conectado</title></head><body style="${estilo}"><h1>✅ Bot conectado a WhatsApp</h1><p>Ya puedes cerrar esta página. El bot está respondiendo.</p></body></html>`
@@ -3335,7 +3344,7 @@ app.get("/pair", async (req, res) => {
 
   // Si aún no hay código, intenta pedirlo ahora mismo.
   if (!pairingCodeActual) {
-    const r = await solicitarCodigoVinculacion();
+    const r = await solicitarCodigoVinculacion(toOverride || undefined);
     if (!r.ok) {
       return res.send(
         `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta http-equiv="refresh" content="4"><title>Generando código</title></head><body style="${estilo}"><h1>⏳ Generando el código de vinculación…</h1><p>Esta página se actualiza sola. Espera unos segundos.</p><p style="opacity:.6;font-size:.85rem">(${r.error})</p></body></html>`
