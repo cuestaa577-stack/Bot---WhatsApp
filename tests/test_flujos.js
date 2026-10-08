@@ -34,6 +34,13 @@ const msg = (numero, texto) => ({
   pushName: "Cliente",
   message: { conversation: texto },
 });
+async function cruda(numero, message) {
+  enviados.length = 0;
+  mockSock.ev.emit("messages.upsert", { type: "notify", messages: [{ key: { remoteJid: `${numero}@s.whatsapp.net`, fromMe: false, id: "c" + Math.random() }, pushName: "Cliente", message }] });
+  for (let i = 0; i < 40 && enviados.length === 0; i++) await esperar(500);
+  await esperar(400);
+  return enviados.map((e) => e.text).filter(Boolean).join(" | ");
+}
 async function tanda(numero, textos) {
   const out = [];
   for (const texto of textos) {
@@ -86,6 +93,24 @@ async function tanda(numero, textos) {
   // Flujo 10: cotizar en Ecuador mid-conversación (número colombiano)
   const f10 = await tanda("573001110010", ["hola", "cuanto es la cedula en ecuador", "extravio"]);
   check(/d[oó]lar|USD|23|americano/i.test(f10[2].out), "Cotiza en USD al mencionar Ecuador", f10[2].out);
+  // Flujo 11: selección múltiple del menú (captura real "1y5")
+  for (const [i, entrada] of ["1y5", "1 y 5", "1,5", "la 1 y la 5"].entries()) {
+    const fm = await tanda("57300111" + (2000 + i), [entrada]);
+    check(/Perfecto/.test(fm[0].out) && /renovaci/i.test(fm[0].out) && /licencia/i.test(fm[0].out) && !/No logr[eé]/.test(fm[0].out), `Selección múltiple "${entrada}"`, fm[0].out);
+  }
+  // Flujo 12: mensajes envueltos de WhatsApp (anuncio, temporal, botón, reacción)
+  const e1 = await cruda("573001113001", { ephemeralMessage: { message: { extendedTextMessage: { text: "Hola quiero más información" } } } });
+  check(/Bienvenido/i.test(e1) && !/Solo puedo atenderte/.test(e1), "Mensaje temporal se lee", e1);
+  const e2 = await cruda("573001113002", { viewOnceMessage: { message: { conversation: "cuanto es la licencia" } } });
+  check(/grado/i.test(e2), "Mensaje 'ver una vez' se lee", e2);
+  const e3 = await cruda("573001113003", { buttonsResponseMessage: { selectedDisplayText: "Quiero más información" } });
+  check(/Bienvenido/i.test(e3) && !/Solo puedo atenderte/.test(e3), "Respuesta de botón se lee", e3);
+  const e4 = await cruda("573001113004", { someUnknownAdMessage: { foo: 1 } });
+  check(/Bienvenido/i.test(e4) && !/Solo puedo atenderte/.test(e4), "Tipo desconocido da bienvenida y no rechaza", e4);
+  enviados.length = 0;
+  mockSock.ev.emit("messages.upsert", { type: "notify", messages: [{ key: { remoteJid: "573001113005@s.whatsapp.net", fromMe: false, id: "r1" }, message: { reactionMessage: { text: "👍" } } }] });
+  await esperar(1500);
+  check(enviados.length === 0, "Reacción 👍 no genera respuesta", enviados.map((e) => e.text).join("|"));
   console.log(`Total: ${ok + fail} · PASS: ${ok} · FAIL: ${fail}`);
   process.exit(fail ? 1 : 0);
 })();

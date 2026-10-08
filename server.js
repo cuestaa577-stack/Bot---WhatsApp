@@ -2642,6 +2642,24 @@ async function responder(numero, texto, esAdmin = false) {
     return cotizacion(numero, obtenerSesion(numero));
   }
 
+  // SELECCIÓN MÚLTIPLE del menú: "1y5", "1 y 5", "1,5", "la 1 y la 5".
+  // Se atiende primero la opción más baja y se deja pendiente la(s) otra(s).
+  {
+    const solo = t.replace(/\b(quiero|necesito|las?|opcion(es)?|numero|el|los|y|e|tambien|con)\b/g, " ");
+    const m2 = solo.match(/^[\s,.;+&-]*([1-7])(?:\s*[,.;+&y-]?\s*([1-7]))+[\s,.;+&-]*$/);
+    const nums = (t.replace(/y/g, " ").match(/\b[1-7]\b/g) || []).map(Number);
+    const unicos = [...new Set(nums)].sort((a, b) => a - b);
+    if (m2 && unicos.length >= 2 && /^[\s\d,.;+&yeolaslnumerotambienquieronecesitopcionescon-]+$/.test(t)) {
+      const primera = unicos[0];
+      const resto = unicos.slice(1);
+      const nombres = { 1: "renovación de cédula", 2: "duplicado por extravío", 3: "duplicado por hurto", 4: "duplicado por deterioro", 5: "licencia de conducir", 6: "antecedentes penales", 7: "verificación de C.I" };
+      actualizarSesion(numero, { pendientes: resto });
+      const aviso = `¡Perfecto! 😊 Veo que necesitas *${nombres[primera]}* y también *${resto.map((n) => nombres[n]).join(" y ")}*. Empecemos con la primera y al terminar seguimos con la otra.\n\n`;
+      const sigue = await responder(numero, String(primera), esAdmin);
+      return aviso + (sigue || "");
+    }
+  }
+
   if (/^7$/.test(t)) {
     actualizarSesion(numero, { estado: "esperando_cedula" });
     return PEDIR_CEDULA;
@@ -3571,14 +3589,45 @@ async function procesarMensajeEntrante(msg) {
     mensajesProcesados.set(msgId, Date.now());
   }
 
-  const m = msg.message;
+  // Desenvolver mensajes especiales de WhatsApp: temporales, "ver una vez",
+  // con pie de documento, editados. Sin esto el bot no veía el texto.
+  const desenvolver = (mm) => {
+    let cur = mm;
+    for (let i = 0; i < 6 && cur; i++) {
+      const inner =
+        cur.ephemeralMessage?.message ||
+        cur.viewOnceMessage?.message ||
+        cur.viewOnceMessageV2?.message ||
+        cur.viewOnceMessageV2Extension?.message ||
+        cur.documentWithCaptionMessage?.message ||
+        cur.editedMessage?.message ||
+        cur.protocolMessage?.editedMessage ||
+        null;
+      if (!inner) break;
+      cur = inner;
+    }
+    return cur;
+  };
+  const m = desenvolver(msg.message) || msg.message;
 
-  // Texto directo (texto, texto extendido, o pie de foto/video).
+  // Reacciones y mensajes de protocolo (borrar, leer): no son consultas.
+  if (m.reactionMessage || (m.protocolMessage && !m.protocolMessage.editedMessage)) return;
+
+  // Texto directo: texto, extendido, pie de foto/video/documento, y respuestas
+  // a botones o listas (anuncios de Facebook/Instagram suelen llegar así).
   const textoDirecto =
     m.conversation ||
     m.extendedTextMessage?.text ||
     m.imageMessage?.caption ||
     m.videoMessage?.caption ||
+    m.documentMessage?.caption ||
+    m.buttonsResponseMessage?.selectedDisplayText ||
+    m.buttonsResponseMessage?.selectedButtonId ||
+    m.listResponseMessage?.title ||
+    m.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    m.templateButtonReplyMessage?.selectedDisplayText ||
+    m.templateButtonReplyMessage?.selectedId ||
+    m.interactiveResponseMessage?.body?.text ||
     "";
   let texto = String(textoDirecto || "").trim();
 
@@ -3607,17 +3656,26 @@ async function procesarMensajeEntrante(msg) {
     registrarEtapaCliente(numero, "ENVIÓ IMAGEN");
     await avisarAsesor(numero, sFoto, "IMAGEN RECIBIDA");
     return;
+  } else if (m.documentMessage || m.locationMessage || m.contactMessage || m.contactsArrayMessage) {
+    if (esAdministrador(numero)) return;
+    await enviar(
+      numero,
+      "¡Recibido! 📎 Un gestor revisará lo que me enviaste y te escribe enseguida por aquí mismo. Si tienes una consulta, también puedes escribirla y te respondo al instante."
+    );
+    const sDoc = obtenerSesion(numero) || crearSesion(numero);
+    registrarEtapaCliente(numero, "ENVIÓ ARCHIVO");
+    await avisarAsesor(numero, sDoc, "ARCHIVO RECIBIDO");
+    return;
   } else if (m.stickerMessage) {
     if (esAdministrador(numero)) return;
     await enviar(numero, "😄 ¡Buen sticker! Si tienes alguna consulta sobre tu documento, escríbeme por texto y te respondo al instante.");
     return;
   } else if (!texto) {
     if (esAdministrador(numero)) return;
-    await enviar(
-      numero,
-      "Solo puedo atenderte por texto o nota de voz 🙏 Escríbeme tu consulta y te respondo al instante."
-    );
-    return;
+    // Tipo de mensaje desconocido (a menudo el aviso de un anuncio): en lugar
+    // de rechazar, se da la bienvenida con el menú como si hubiera saludado.
+    console.log("ℹ️ Mensaje sin texto de tipo:", Object.keys(m).join(","));
+    texto = "hola";
   }
 
   if (!texto) return;
