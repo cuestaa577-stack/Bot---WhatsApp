@@ -429,7 +429,7 @@ function textoLimpio(v) {
 // Saludo en cualquier parte del mensaje ("buenas, quiero info", "que tal, precio?").
 function contieneSaludo(limpio) {
   const palabras = limpio.split(" ");
-  const saludos = /^(hola+|holi|ola+|buenos dias|buen dia|buenas tardes|buenas noches|buenas|saludos|saludo|hey|ei|ey|epa|eipa|que tal|holis|weno|wenas|buen|dias|tardes|noches|dime|cuales)$/;
+  const saludos = /^(hola+|holi|ola+|buenos dias|buen dia|buenas tardes|buenas noches|buenas|saludos|saludo|hey|ei|ey|epa|eipa|que tal|holis|weno|wenas|dime)$/;
   if (palabras.some((w, i) => i < 4 && saludos.test(w))) return true;
   // Pares: "buen dia", "buenos dias", "que tal", etc.
   for (let i = 0; i + 1 < 4 && i + 1 < palabras.length; i++) {
@@ -908,7 +908,7 @@ function esPreguntaOriginal(texto) {
 
 function esPreguntaTiempo(texto) {
   const t = normalizar(texto);
-  return /cuanto tarda|cuanto tiempo|cuanto demora|cuanto se demora|cuando estara listo|en cuanto tiempo|lo hacen hoy|lo hacen ahora|es urgente|tengo urgencia|es para hoy|me urge|cuanto tardan|cuanto se tardan|para cuando estaria|trabajan hoy/.test(
+  return /cuanto tarda|cuanto tiempo|cuanto demora|cuanto se demora|cuando estara listo|en cuanto tiempo|lo hacen hoy|lo hacen ahora|es urgente|tengo urgencia|es para hoy|me urge|cuanto tardan|cuanto se tardan|para cuando estaria|trabajan hoy|lo necesito|para un trabajo|lo uso el|lo uso para/.test(
     t
   );
 }
@@ -943,7 +943,7 @@ function esPreguntaRequisitos(texto) {
 
 function esPreguntaPago(texto) {
   const t = normalizar(texto);
-  return /como pago|donde pago|metodos de pago|formas de pago|como puedo pagar|se puede pagar|pago por|tienen nequi|tienen daviplata|tienen bancolombia|aceptan zelle|aceptan paypal|aceptan usdt|aceptan efectivo|nequi\b|zelle\b|daviplata\b|bancolombia\b|paypal\b|usdt\b|binance\b|western union/.test(
+  return /como pago|donde pago|metodos de pago|formas de pago|como puedo pagar|se puede pagar|pago por|tienen nequi|tienen daviplata|tienen bancolombia|aceptan zelle|aceptan paypal|aceptan usdt|aceptan efectivo|nequi\b|zelle\b|daviplata\b|bancolombia\b|paypal\b|usdt\b|binance\b|western union|desde usa|desde estados unidos|desde el extranjero|aceptan pago|pago desde|remesa|desde afuera|internacional/.test(
     t
   );
 }
@@ -1059,7 +1059,7 @@ function esPreguntaVerdadEstafa(texto) {
 
 function esPreguntaComoFunciona(texto) {
   const t = normalizar(texto);
-  return /como funciona|como es el proceso|como es el tramite|como trabajan|como hacen el|en que consiste|como empiezo|como inicio|como hago para empezar|como hago para iniciar|quiero empezar|quiero iniciar|por donde empiezo|que debo hacer|que tengo que hacer|en que les puedo ayudar|como es el servicio|de que se trata el servicio|explicame|explique/.test(t);
+  return /como funciona|como es el proceso|como es el tramite|como trabajan|como hacen el|en que consiste|como empiezo|como inicio|como hago para empezar|como hago para iniciar|quiero empezar|quiero iniciar|por donde empiezo|que debo hacer|que tengo que hacer|en que les puedo ayudar|como es el servicio|de que se trata el servicio|explicame|explique|que pasos|cuales son los pasos|como sigo|siguiente paso|que hago despues|que sigue|que hago ahora/.test(t);
 }
 
 function esPreguntaFacil(texto) {
@@ -2226,6 +2226,20 @@ async function responder(numero, texto, esAdmin = false) {
     }
   }
 
+  // "Después te escribo / más tarde te aviso" sin fecha concreta:
+  // no se agenda nada, no se insiste, solo quedar atento.
+  {
+    const tPost = normalizar(original);
+    if (
+      /(despues|luego|mas tarde|mas rato|por ahora|en unos dias|otro dia|cuando pueda)\s*(te |le )?(escribo|escribo por|aviso|digo|llamo|comunico|confirmo|vuelvo|sigo|hago el tramite)/.test(tPost) ||
+      /^(luego|mas tarde|despues|otro dia|en unos dias|por ahora)$/.test(tPost)
+    ) {
+      cancelarSeguimiento(numero);
+      actualizarSesion(numero, { estado: "post_cierre_atento" });
+      return "Claro, sin problema. 😊 Cuando quieras retomar el trámite, escríbeme por aquí y seguimos donde lo dejamos.";
+    }
+  }
+
   // Si la persona retoma el trámite o confirma, se cancela lo programado.
   {
     const s0 = obtenerSesion(numero);
@@ -2659,6 +2673,38 @@ async function responder(numero, texto, esAdmin = false) {
     const limpio2 = textoLimpio(original);
     if (/^(una pregunta|tengo una pregunta|tengo una dudas?|una duda|tengo dudas|puedo preguntar|puedo hacerte una pregunta|te puedo preguntar algo|una consulta|disculpa|disculpe|oye|perdon que moleste)\b/.test(limpio2)) {
       return "¡Claro que sí! 😊 Cuéntame tu pregunta y te respondo enseguida.";
+    }
+  }
+
+  // Mensaje que es solo emojis: se agradece el gesto sin responder tonterías.
+  {
+    if (
+      textoLimpio(original) === "" &&
+      /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{FE0F}]/u.test(original)
+    ) {
+      return "¡Perfecto! 👍 Cuando quieras seguir o tienes alguna pregunta, escríbeme por aquí. 😊";
+    }
+  }
+
+  // "Vivo en Chile / estoy en Ecuador": confirmar país cuando es lo único que dice.
+  {
+    const tPais = normalizar(original);
+    if (
+      /^(soy |vivo |estoy |me encuentro |estoy viviendo |soy de |vivo en |estoy en )/.test(tPais) &&
+      tPais.split(" ").length <= 6 &&
+      /(chile|chilen|ecuador|ecuatori|peru|peruan|colombia|colombian|venezuela|venezolan|mexic|argentin|panama|espana|espanol|bolivia|paraguay|uruguay|dominic|costa rica|guatemala|honduras|salvador)/.test(tPais) &&
+      !/(licencia|antecedente|cedula|precio|cuanto)/.test(tPais)
+    ) {
+      const pais = s.pais || detectarPaisTexto(original) || "tu país";
+      return `¡Entendido! 🌎 Trabajamos con personas en ${pais} y alrededores. Escribe *menú* para ver los trámites disponibles, o dime qué documento necesitas. 😊`;
+    }
+  }
+
+  // "Es para mi esposo/mamá/...": sí se gestiona para otra persona.
+  {
+    const tTercero = normalizar(original);
+    if (/es para (mi |un |una )?(espos|mam|pap|herman|hij|prim|sobrin|ti[oa]|abuel|niet|amig|familiar|vecin)/.test(tTercero) && tTercero.split(" ").length <= 7) {
+      return "¡Claro que sí! 😊 El trámite se puede gestionar para otra persona. Dime qué documento necesita (cédula, licencia o antecedentes) y con gusto seguimos desde ahí.";
     }
   }
 
