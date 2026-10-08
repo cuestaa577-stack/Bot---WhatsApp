@@ -401,6 +401,22 @@ function normalizar(v) {
     .replace(/\s+/g, " ");
 }
 
+// Texto "limpio": sin puntuación ni emojis, para detectar saludos e
+// intenciones sin importar cómo esté escrito el mensaje.
+function textoLimpio(v) {
+  return normalizar(v)
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Saludo en cualquier parte del mensaje ("buenas, quiero info", "que tal, precio?").
+function contieneSaludo(limpio) {
+  const palabras = limpio.split(" ");
+  const saludos = /^(hola+|holi|ola+|buenos dias|buen dia|buenas tardes|buenas noches|buenas|saludos|hey|ei|que tal|epa|chao$|buenas$|dime$|cuales$)$/;
+  return palabras.some((w, i) => i < 4 && saludos.test(w));
+}
+
 function limpiarTelefono(v) {
   return String(v || "").replace(/\D/g, "");
 }
@@ -2376,13 +2392,19 @@ async function responder(numero, texto, esAdmin = false) {
   // Saludos: cualquier mensaje que empiece con un saludo (con o sin texto
   // adicional, como "hola quiero mas informacion") o que sea un pedido
   // genérico de información, muestra el menú directamente.
-  if (
-    /^(hola+|ola+|buenos? d[ií]as?|buenas tardes|buenas noches|buenas|saludos|hey|que tal)\b/.test(t) ||
-    /^(quiero|necesito|deseo|me gustaria|quisiera)?\s*(mas )?informaci[oó]n\b/.test(t) ||
-    /\b(quiero|necesito|deseo|quisiera|me gustaria)\b.*\b(mas )?informacion\b/.test(t) ||
-    /^(soy|somos) (venezolan[oa]s?|de venezuela)\b/.test(t)
-  ) {
-    return MENU;
+  {
+    const limpio = textoLimpio(original);
+
+    if (
+      contieneSaludo(limpio) ||
+      /\b(mas )?informacion\b/.test(limpio) ||
+      /^(quiero|necesito|deseo|quisiera|me gustaria)?\s*(mas )?informaci[oó]n\b/.test(t) ||
+    /^(soy|somos) (venezolan[oa]s?|de venezuela)\b/.test(t) ||
+      /^([a-z\s]*\bquiero informacion\b|\bdame informacion\b|\bme das informacion\b|\benviame informacion\b|\bmandame informacion\b|\bpuedes darme informacion\b)$/.test(limpio) ||
+      /^informacion$|^info$|^ficha$|^datos$/.test(limpio)
+    ) {
+      return MENU;
+    }
   }
 
   // Solicitud directa de realizar el trámite.
