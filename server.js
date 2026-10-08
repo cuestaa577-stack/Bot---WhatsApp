@@ -1082,6 +1082,11 @@ function esPreguntaSerie(texto) {
   return /numero de serie|trae serie|serie atras|parte posterior|parte de atras|codigo de la parte de atras|codigo atras/.test(t);
 }
 
+function esPreguntaPdf(texto) {
+  const t = normalizar(texto);
+  return /\bpdf\b|me mandas el pdf|me lo mandas|me lo envias|me lo puedes mandar|como me lo entregan|como lo recibo|como lo recib|en que formato/.test(t);
+}
+
 function esPreguntaPlastificar(texto) {
   const t = normalizar(texto);
   return /plastific/.test(t);
@@ -1255,6 +1260,9 @@ function respuestaFAQ(texto) {
 
   if (esPreguntaFisicoDigital(texto))
     return "Lo siento amiga/o, pero esto es una plataforma virtual de trámites venezolanos, por lo tanto los documentos realizados se entregan por correo o WhatsApp, listo para imprimirlo y plastificarlo. 😊";
+
+  if (esPreguntaPdf(texto))
+    return "¡Claro que sí! Te lo enviamos por este mismo chat en formato PDF de alta calidad, listo para imprimir y plastificar. Quedará igual que tu documento original. ✅";
 
   if (esPreguntaPlastificar(texto))
     return "¡Claro que sí! Te lo entregamos en formato PDF de alta calidad, listo para imprimir y plastificar. Quedará igual que tu documento original. ✅";
@@ -2096,7 +2104,7 @@ function cotizacion(numero, s) {
 
 function esRespuestaSi(texto) {
   const t = normalizar(texto).replace(/[.!?,;:]+$/g, "").trim();
-  return /^(si|si si quiero|si quiero|si claro|si estoy interesado|si estoy interesada|si mano|claro|dale|dale mi hermano|dale me gustaria|ok|okay|okey|esta bien|de acuerdo|vale|perfecto|genial|ya|confirmo|quiero|por supuesto)$/.test(
+  return /^(sip|sii|sisi|simon|si|si si quiero|si quiero|si claro|si estoy interesado|si estoy interesada|si mano|claro|dale|dale mi hermano|dale me gustaria|ok|okay|okey|esta bien|de acuerdo|vale|perfecto|genial|ya|confirmo|quiero|por supuesto)$/.test(
     t
   );
 }
@@ -2455,6 +2463,12 @@ async function responder(numero, texto, esAdmin = false) {
   }
 
   // Pago: métodos de pago disponibles.
+  // "Ya hice la transferencia / aquí está el comprobante": avisar que se revisa.
+  if (/(ya )?(hice )?(la )?(transferencia|el pago)|ya pague|ya lo pague|comprobante|acabo de pagar|ya envie el pago|ya envie el dinero/.test(t)) {
+    registrarEtapaCliente(numero, "PAGO REPORTADO");
+    return "¡Recibido! 🙌 Un gestor verificará tu pago y te escribirá enseguida por aquí mismo para continuar con tu trámite. Si es por un comprobante (foto), mándamelo y lo revisamos de inmediato. 📸";
+  }
+
   if (esPreguntaPago(original)) {
     return respuestaPago(numero, original);
   }
@@ -2673,6 +2687,22 @@ async function responder(numero, texto, esAdmin = false) {
     const limpio2 = textoLimpio(original);
     if (/^(una pregunta|tengo una pregunta|tengo una dudas?|una duda|tengo dudas|puedo preguntar|puedo hacerte una pregunta|te puedo preguntar algo|una consulta|disculpa|disculpe|oye|perdon que moleste)\b/.test(limpio2)) {
       return "¡Claro que sí! 😊 Cuéntame tu pregunta y te respondo enseguida.";
+    }
+  }
+
+  // "Seguimos" / un "sí" suelto sin pregunta pendiente: continuar con gusto.
+  {
+    const tCont = normalizar(original);
+    if (
+      !s.estado ||
+      !["confirmar_muestra", "confirmar_continuar", "ofrecer_descuento", "pedir_nombre_referido"].includes(s.estado)
+    ) {
+      if (/^(seguimos|continuemos|vamos|vamos bien|va bien seguimos|sigamos|dale que seguimos)$/.test(tCont)) {
+        return "¡Perfecto, seguimos! 😊 Dime qué documento necesitas (cédula, licencia o antecedentes) o escribe *menú* para ver las opciones.";
+      }
+      if (esRespuestaSi(original)) {
+        return "¡Genial! 😊 Dime qué documento necesitas (cédula, licencia o antecedentes) o escribe *menú* para ver las opciones.";
+      }
     }
   }
 
