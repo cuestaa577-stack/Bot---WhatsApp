@@ -2799,7 +2799,11 @@ function detectarConfirmacionParaFecha(texto) {
   const t = normalizar(texto);
   if (!t) return null;
 
-  const hayIntencion =
+  // Respuesta corta que es solo una fecha ("Mañana", "El viernes", "Lunes",
+  // "Pasado mañana", "La próxima semana", "En la tarde mañana"): cuenta como cita.
+  const soloFecha = /^(para |hasta |el |este |en |la |lo |nos vemos |hablamos |escribo |escribimos |te escribo |hablamos el |hasta el )*(hoy en la noche|(en la |por la |de )?(manana|tarde|noche) (de )?manana|pasado manana|manana( en la (manana|tarde|noche))?|lunes|martes|miercoles|jueves|viernes|sabado|domingo|(el )?(fin de semana|finde)|(la )?(proxima semana|otra semana|semana que viene)|(el )?proximo (lunes|martes|miercoles|jueves|viernes|sabado|domingo))( por la (manana|tarde|noche))?( ?[.!]*)?$/.test(t);
+
+  const hayIntencion = soloFecha ||
     /(confirm|aviso|avisar|te digo|le digo|te escribo|me comunico|comunicarme|te llamo|llamar|te contesto|respondo|espera|dejo pendiente|hago el|hago la|realizo|inici|retomo|continuo|sigo con|pago|tengo|ando|sueldo|me pagan|cobro|nomina|viaje|viajo|viaja|cheque|reviso)/.test(t);
   if (!hayIntencion) return null;
 
