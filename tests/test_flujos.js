@@ -1,0 +1,79 @@
+// Prueba de flujos de varios pasos: menú, elección de documento y cambios a mitad de camino.
+const Module = require("module");
+const { EventEmitter } = require("events");
+const path = require("path");
+const enviados = [];
+let mockSock = null;
+const makeWASocket = () => {
+  const ev = new EventEmitter();
+  mockSock = { ev, sendMessage: async (jid, c) => { enviados.push({ jid, text: c && c.text }); } };
+  return mockSock;
+};
+const mockBaileys = {
+  default: makeWASocket, makeWASocket,
+  makeCacheableSignalKeyStore: (k) => k,
+  Browsers: { ubuntu: () => ["Ubuntu", "Chrome", "1.0.0"] },
+  useMultiFileAuthState: async () => ({ state: { creds: {}, keys: {} }, saveCreds: async () => {} }),
+  DisconnectReason: { loggedOut: 401 },
+  downloadMediaMessage: async () => Buffer.from("x"),
+  fetchLatestBaileysVersion: async () => ({ version: [2, 3000, 0] }),
+};
+const orig = Module.prototype.require;
+Module.prototype.require = function (id) {
+  if (id === "@whiskeysockets/baileys") return mockBaileys;
+  return orig.apply(this, arguments);
+};
+process.env.PORT = "10088";
+process.env.ADMIN_NOTIFICATIONS_ENABLED = "false";
+process.env.AUTH_DIR = path.join(__dirname, "auth_test_flujos");
+process.env.SELF_URL = "";
+require("../server.js");
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+const msg = (numero, texto) => ({
+  key: { remoteJid: `${numero}@s.whatsapp.net`, fromMe: false, id: "m" + Math.random() },
+  pushName: "Cliente",
+  message: { conversation: texto },
+});
+async function tanda(numero, textos) {
+  const out = [];
+  for (const texto of textos) {
+    enviados.length = 0;
+    mockSock.ev.emit("messages.upsert", { type: "notify", messages: [msg(numero, texto)] });
+    for (let i = 0; i < 60 && enviados.length === 0; i++) await esperar(500);
+    await esperar(300);
+    out.push({ in: texto, out: enviados.map((e) => e.text).filter(Boolean).join(" | ") });
+  }
+  return out;
+}
+(async () => {
+  await esperar(3500);
+  mockSock.ev.emit("connection.update", { connection: "open" });
+  await esperar(500);
+  let ok = 0, fail = 0;
+  const check = (cond, name, extra) => {
+    console.log((cond ? "✅ " : "❌ ") + name + (cond ? "" : "  -> " + (extra || "")));
+    cond ? ok++ : fail++;
+  };
+  // Flujo 1: menú -> 1 (cédula) -> extravío -> precio -> sí (muestra)
+  const f1 = await tanda("573001110001", ["menu", "1", "extravio", "cuanto es", "si"]);
+  check(/c[eé]dula|C[eé]dula|opciones/i.test(f1[1].out), "Menú opción 1 lleva a cédula", f1[1].out);
+  check(/extrav/i.test(f1[2].out) || /24|30/.test(f1[2].out), "Extravío responde precio/motivo", f1[2].out);
+  check(/muestra|MUESTRA/i.test(f1[4].out) || /datos/i.test(f1[4].out), "Sí continúa hacia muestra/datos", f1[4].out);
+  // Flujo 2: cédula a mitad cambia a licencia
+  const f2 = await tanda("573001110002", ["hola", "cuanto es la cedula", "mejor quiero la licencia"]);
+  check(/licencia/i.test(f2[2].out) && !/No logr[eé]/.test(f2[2].out), "Cambio a licencia a mitad de camino", f2[2].out);
+  // Flujo 3: licencia -> grado 3 -> precio
+  const f3 = await tanda("573001110003", ["cuanto es la licencia", "3"]);
+  check(/48|precio|grado/i.test(f3[1].out), "Grado 3 responde con precio/continúa", f3[1].out);
+  // Flujo 4: "olvidalo" / "mejor deja" -> cierre amable
+  const f4 = await tanda("573001110004", ["cuanto es la cedula", "mejor olvidalo"]);
+  check(/sin problema|Entiendo|aqu[ií]/i.test(f4[1].out) && !/No logr[eé]/.test(f4[1].out), "'Mejor olvídalo' cierra amable", f4[1].out);
+  // Flujo 5: Chile (número chileno) precios en CLP tras elegir motivo
+  const f5 = await tanda("56911110005", ["cuanto es la cedula", "extravio"]);
+  check(/chilen/i.test(f5[1].out), "Número chileno ve precios en CLP", f5[1].out);
+  // Flujo 6: cambiar de documento a mitad del estado grado
+  const f6 = await tanda("573001110006", ["cuanto es la licencia", "cuanto es la cedula"]);
+  check(/renovaci|extrav|hurto|deterioro|c[eé]dula es por/i.test(f6[1].out) && !/grado de licencia/i.test(f6[1].out), "Cede el paso a la cédula desde el estado grado", f6[1].out);
+  console.log(`Total: ${ok + fail} · PASS: ${ok} · FAIL: ${fail}`);
+  process.exit(fail ? 1 : 0);
+})();

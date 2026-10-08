@@ -2422,11 +2422,21 @@ async function responder(numero, texto, esAdmin = false) {
       actualizarSesion(numero, { estado: null, procedimiento: "cedula", motivo: motivoResp });
       return cotizacion(numero, obtenerSesion(numero));
     }
-    const palabras = t.split(" ").length;
-    if (palabras <= 4 && !t.includes("?")) {
-      return "¿La cédula es por renovación/vencimiento, extravío, hurto o deterioro? (responde 1, 2, 3 o 4)";
+    // Cancelar ("mejor olvídalo"): cerrar amable sin repetir la pregunta.
+    if (/(mejor |ya )?(olvidalo|olv[ií]dalo|deja[lo]? asi|no importa|cancela|cancelo|nada|ya no quiero|dejalo|no quiero nada|no insisto)/.test(t)) {
+      actualizarSesion(numero, { estado: "post_cierre_atento" });
+      return "Sin problema. 😊 Quedo por aquí por si más adelante necesitas tu documento.";
     }
-    actualizarSesion(numero, { estado: null });
+    // Menciona otro documento ("mejor quiero la licencia"): cambiar de flujo.
+    if (/licencia|antecedente/.test(t) && /(mejor|prefiero|quiero|cambi|cambio|ahora|en vez|en lugar|tambien|otro|sabe|cuanto|dime|ver|hablando)/.test(t)) {
+      actualizarSesion(numero, { estado: null });
+    } else {
+      const palabras = t.split(" ").length;
+      if (palabras <= 4 && !t.includes("?")) {
+        return "¿La cédula es por renovación/vencimiento, extravío, hurto o deterioro? (responde 1, 2, 3 o 4)";
+      }
+      actualizarSesion(numero, { estado: null });
+    }
   }
 
   // Referido: el cliente menciona quién lo recomendó (para el descuento de esa persona).
@@ -2567,14 +2577,26 @@ async function responder(numero, texto, esAdmin = false) {
     }
 
     if (!grado) {
-      return PREGUNTA_LICENCIA;
+      const tG = normalizar(original);
+      // Cancelar ("mejor olvídalo"): cerrar amable.
+      if (/(mejor |ya )?(olvidalo|olv[ií]dalo|deja[lo]? asi|no importa|cancela|cancelo|nada|ya no quiero|dejalo|no quiero nada|no insisto)/.test(tG)) {
+        actualizarSesion(numero, { estado: "post_cierre_atento" });
+        return "Sin problema. 😊 Quedo por aquí por si más adelante necesitas tu documento.";
+      }
+      // Otro documento o cualquier pregunta: salir del estado y dejar que el
+      // resto del flujo conteste (antes se quedaba re-preguntando el grado).
+      if (/cedula|antecedente|precio|cuanto|cuales|pasos|requisito|proceso|pago|pdf/.test(tG) || tG.includes("?")) {
+        actualizarSesion(numero, { estado: null });
+      } else {
+        return PREGUNTA_LICENCIA;
+      }
+    } else {
+      actualizarSesion(numero, {
+        estado: null,
+        procedimiento: "licencia",
+        grado,
+      });
     }
-
-    actualizarSesion(numero, {
-      estado: null,
-      procedimiento: "licencia",
-      grado,
-    });
 
     if (!PRICE_QUOTES_ENABLED) {
       return `Licencia de conducir, grado ${grado}°. Un asesor puede confirmarte la información y tarifa correspondiente.`;
