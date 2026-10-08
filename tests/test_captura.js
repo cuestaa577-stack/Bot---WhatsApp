@@ -100,21 +100,10 @@ async function enviarMensaje(numero, texto) {
   await esperar(500);
 
   const casos = [
-    ["ya hice la transferencia","ya hice la transferencia"],
-    ["aqui esta el comprobante","aqui esta el comprobante"],
-    ["ya pague nequi","ya pague nequi"],
-    ["sip","sip"],
-    ["seguimos","seguimos"],
-    ["sí","sí"],
-    ["me mandas el pdf","me mandas el pdf"],
-    ["como lo recibo","como lo recibo"],
-    ["como pago","como pago"],
-    ["gracias","gracias"],
-    ["te confirmo el viernes","te confirmo el viernes"],
-    ["hola","hola"],
+    ["que pasa si me paran en una via?","que pasa si me paran en una via?"],
+    ["si me paran los policias que pasa","si me paran los policias que pasa"],
     ["cuanto es la licencia","cuanto es la licencia"],
-    ["no me interesa","no me interesa"],
-    ["Mañana","Mañana"]
+    ["hola","hola"]
   ];
 
   let numero = 573001112233;

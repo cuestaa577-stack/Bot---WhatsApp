@@ -894,7 +894,7 @@ function esPreguntaLegal(texto) {
 
 function esPreguntaSeguridad(texto) {
   const t = normalizar(texto);
-  return /es seguro|es totalmente seguro|esto es seguro|es segura|son seguros|mis datos|datos protegidos|confidencial|mi informacion|privacidad/.test(
+  return /es seguro|es totalmente seguro|esto es seguro|es segura|son seguros|mis datos|datos protegidos|confidencial|mi informacion|privacidad|que tan seguro|que tan confiable|es confiable|son confiables|es fiable|son fiables|es estafa|me van a estafar|es estafador|es legitimo|es legal/.test(
     t
   );
 }
@@ -908,7 +908,7 @@ function esPreguntaOriginal(texto) {
 
 function esPreguntaTiempo(texto) {
   const t = normalizar(texto);
-  return /cuanto tarda|cuanto tiempo|cuanto demora|cuanto se demora|cuando estara listo|en cuanto tiempo|lo hacen hoy|lo hacen ahora|es urgente|tengo urgencia|es para hoy|me urge|cuanto tardan|cuanto se tardan|para cuando estaria|trabajan hoy|lo necesito|para un trabajo|lo uso el|lo uso para/.test(
+  return /cuanto tarda|cuanto tiempo(?! (llevan|lleva|hace que llevan))|cuanto demora|cuanto se demora|cuando estara listo|en cuanto tiempo|lo hacen hoy|lo hacen ahora|es urgente|tengo urgencia|es para hoy|me urge|cuanto tardan|cuanto se tardan|para cuando estaria|trabajan hoy|lo necesito|para un trabajo|lo uso el|lo uso para|hoy mismo|lo quiero hoy|lo necesito hoy|lo quiero ya|lo necesito ya|lo mas rapido|cuanto tiempo tardan/.test(
     t
   );
 }
@@ -1099,7 +1099,7 @@ function esPreguntaViajar(texto) {
 
 function esPreguntaSirveTramites(texto) {
   const t = normalizar(texto);
-  return /sirve para|me sirve|puedo usarlo|puedo usarla|para que sirve|lo aceptan|la aceptan|es valido|es valida|tiene validez|vale para|funciona para|usarlo para|usarla para/.test(t);
+  return /sirve para|me sirve|puedo usarlo|puedo usarla|la puedo usar|el puedo usar|puedo usar (el|la|lo|para|este)|para que sirve|lo aceptan|la aceptan|es valido|es valida|tiene validez|vale para|funciona para|usarlo para|usarla para/.test(t);
 }
 
 function esPreguntaSeVeIgual(texto) {
@@ -2703,6 +2703,41 @@ async function responder(numero, texto, esAdmin = false) {
       if (esRespuestaSi(original)) {
         return "¡Genial! 😊 Dime qué documento necesitas (cédula, licencia o antecedentes) o escribe *menú* para ver las opciones.";
       }
+    }
+  }
+
+  // SIMIT / revisión en la vía / banco: explicar y pasar al gestor.
+  {
+    const tSimit = normalizar(original);
+    if (
+      /\b(simit|runt|ruat)\b/.test(tSimit) ||
+      /me paren|me paran|revision en la via|en la via|en una via|policia|patrull|banco|verifican|lo revisan|me lo revisan/.test(tSimit)
+    ) {
+      return "El documento se elabora con toda tu información real y se ve igual al original. ✅ Para contarte con detalle cómo funciona en tu caso concreto, te paso con un gestor que te explica todo y puede mostrarte una muestra. ¿Te parece? 😊";
+    }
+  }
+
+  // Pagar por mitades / cuotas: el pago va después de la muestra, completo.
+  {
+    const tCuotas = normalizar(original);
+    if (/(la mitad|mitad del|mitad y mitad|en cuotas|cuotas\b|por partes|abonar|abono|dejar un separado|pagar por partes)/.test(tCuotas)) {
+      return "El pago se hace una sola vez y completo, pero tranquilo: solo pagas *después* de ver y aprobar la muestra de tu documento. Antes de eso no pagas nada. 😊";
+    }
+  }
+
+  // Antigüedad / experiencia del negocio.
+  {
+    const tExp = normalizar(original);
+    if (/(cuantos anos|cuanto tiempo llevan|cuanto llevan|llevan mucho tiempo|experiencia tienen|que tan antiguos|son nuevos en esto)/.test(tExp)) {
+      return "Llevamos tiempo gestionando estos trámites con clientes en Colombia, Chile, Ecuador y otros países, con entrega rápida en formato PDF. Un gestor puede mostrarte muestras reales para que compruebes la calidad. ¿Quieres ver una? 😊";
+    }
+  }
+
+  // Horarios / domingos / festivos.
+  {
+    const tHorario = normalizar(original);
+    if (/(trabajan (los )?(domingos|sabados|festivos|hoy)|horario|a que hora|atienden|esta abierto|abren|estan abiertos|hoy es festivo)/.test(tHorario)) {
+      return "¡Atendemos todos los días! 😊 Los gestores responden durante el día y este chat está disponible 24/7. Escríbeme cuando quieras, sin problema.";
     }
   }
 
