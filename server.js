@@ -429,8 +429,14 @@ function textoLimpio(v) {
 // Saludo en cualquier parte del mensaje ("buenas, quiero info", "que tal, precio?").
 function contieneSaludo(limpio) {
   const palabras = limpio.split(" ");
-  const saludos = /^(hola+|holi|ola+|buenos dias|buen dia|buenas tardes|buenas noches|buenas|saludos|hey|ei|que tal|epa|chao$|buenas$|dime$|cuales$)$/;
-  return palabras.some((w, i) => i < 4 && saludos.test(w));
+  const saludos = /^(hola+|holi|ola+|buenos dias|buen dia|buenas tardes|buenas noches|buenas|saludos|saludo|hey|ei|ey|epa|eipa|que tal|holis|weno|wenas|buen|dias|tardes|noches|dime|cuales)$/;
+  if (palabras.some((w, i) => i < 4 && saludos.test(w))) return true;
+  // Pares: "buen dia", "buenos dias", "que tal", etc.
+  for (let i = 0; i + 1 < 4 && i + 1 < palabras.length; i++) {
+    if (saludos.test(palabras.slice(i, i + 2).join(" "))) return true;
+    if (saludos.test(palabras[i] + " " + palabras[i + 1])) return true;
+  }
+  return /^(holaa|holaaa|holi|holis|epa|ey|ei|wena|wenas)$/.test(limpio);
 }
 
 function limpiarTelefono(v) {
@@ -850,7 +856,7 @@ function esIntencionTramite(texto) {
 
 function esPreguntaPrecio(texto) {
   const t = normalizar(texto);
-  return /cuanto cuesta|cuanto vale|precio|costo|tarifa|cuanto debo pagar|valor/.test(
+  return /cuanto cuesta|cuanto vale|cuanto es|cuanto sale|cuanto sale|cuanto seria|precio|costo|tarifa|cuanto debo pagar|valor|en cuanto/.test(
     t
   );
 }
@@ -902,7 +908,7 @@ function esPreguntaOriginal(texto) {
 
 function esPreguntaTiempo(texto) {
   const t = normalizar(texto);
-  return /cuanto tarda|cuanto tiempo|cuanto demora|cuanto se demora|cuando estara listo|en cuanto tiempo/.test(
+  return /cuanto tarda|cuanto tiempo|cuanto demora|cuanto se demora|cuando estara listo|en cuanto tiempo|lo hacen hoy|lo hacen ahora|es urgente|tengo urgencia|es para hoy|me urge|cuanto tardan|cuanto se tardan|para cuando estaria|trabajan hoy/.test(
     t
   );
 }
@@ -937,14 +943,14 @@ function esPreguntaRequisitos(texto) {
 
 function esPreguntaPago(texto) {
   const t = normalizar(texto);
-  return /como pago|donde pago|metodos de pago|formas de pago|como puedo pagar|se puede pagar/.test(
+  return /como pago|donde pago|metodos de pago|formas de pago|como puedo pagar|se puede pagar|pago por|tienen nequi|tienen daviplata|tienen bancolombia|aceptan zelle|aceptan paypal|aceptan usdt|aceptan efectivo|nequi\b|zelle\b|daviplata\b|bancolombia\b|paypal\b|usdt\b|binance\b|western union/.test(
     t
   );
 }
 
 function esPreguntaDescuento(texto) {
   const t = normalizar(texto);
-  return /descuento|rebaja|mas barato|algo mas economico|un poco menos|baja(?:r|le|ndole)?\s+(?:[\w]+\s+){0,2}(?:el\s+)?precio|lo menos|lo minimo|precio minimo|precio mas bajo|en cuanto me lo (?:dejas|deje|dejas)|cuanto es lo (?:menos|minimo|minimo que me puedes cobrar)/.test(
+  return /descuento|rebaja|mas barato|me recomendaron|traigo referencia|vengo por referencia|me refirieron|me refirio|algo mas economico|un poco menos|baja(?:r|le|ndole)?\s+(?:[\w]+\s+){0,2}(?:el\s+)?precio|lo menos|lo minimo|precio minimo|precio mas bajo|en cuanto me lo (?:dejas|deje|dejas)|cuanto es lo (?:menos|minimo|minimo que me puedes cobrar)/.test(
     t
   );
 }
@@ -1053,7 +1059,7 @@ function esPreguntaVerdadEstafa(texto) {
 
 function esPreguntaComoFunciona(texto) {
   const t = normalizar(texto);
-  return /como funciona|como es el proceso|como es el tramite|como trabajan|como hacen el/.test(t);
+  return /como funciona|como es el proceso|como es el tramite|como trabajan|como hacen el|en que consiste|como empiezo|como inicio|como hago para empezar|como hago para iniciar|quiero empezar|quiero iniciar|por donde empiezo|que debo hacer|que tengo que hacer|en que les puedo ayudar|como es el servicio|de que se trata el servicio|explicame|explique/.test(t);
 }
 
 function esPreguntaFacil(texto) {
@@ -1161,7 +1167,7 @@ function esPreguntaPagarAntes(texto) {
 
 function esPreguntaNoMeGusta(texto) {
   const t = normalizar(texto);
-  return /(?:que pasa )?si no me gusta|no me gusta el resultado|no quedo satisfech|quedo mal hecho/.test(t);
+  return /(?:que pasa )?si no me gusta|no me gusta el resultado|no quedo satisfech|quedo mal hecho|me queda mal|quedo mal|sale mal|si me queda mal|si queda mal|si sale mal|queda feo/.test(t);
 }
 
 function esPreguntaDevolucion(texto) {
@@ -1197,6 +1203,11 @@ function esPreguntaDocsNo(texto) {
 function esPreguntaConsultarCedula(texto) {
   const t = normalizar(texto);
   return /consultar mi cedula|puedo consultar|verificar mi cedula|consultar primero|verificar primero|revisar mi cedula|consultar la cedula primero/.test(t);
+}
+
+function esPreguntaMuestra(texto) {
+  const t = normalizar(texto);
+  return /una muestra|ver la muestra|ver una muestra|muestrame|ensename|un ejemplo|ver un ejemplo|como se ve|muestrame un ejemplo|me pasas una muestra|fotos de ejemplo|muestras\b/.test(t);
 }
 
 function esPreguntaPapelImpresion(texto) {
@@ -1247,6 +1258,9 @@ function respuestaFAQ(texto) {
 
   if (esPreguntaPlastificar(texto))
     return "¡Claro que sí! Te lo entregamos en formato PDF de alta calidad, listo para imprimir y plastificar. Quedará igual que tu documento original. ✅";
+
+  if (esPreguntaMuestra(texto))
+    return "¡Claro que sí! 😊 En seguida te paso con el gestor, quien te enviará una muestra del documento para que la revises y confirmes que todo esté correcto.";
 
   if (esPreguntaPapelImpresion(texto))
     return "El papel de impresión se llama OPALINA ✅ En este caso lo tienes fácil: la cédula ya viene con sus medidas.";
@@ -2605,6 +2619,14 @@ async function responder(numero, texto, esAdmin = false) {
   // FAQ.
   if (/^9$/.test(t)) {
     return "📋 Pregúntame directamente lo que necesitas y te responderé solo esa pregunta.";
+  }
+
+  // El cliente anuncia que tiene una pregunta: se le invita a hacerla.
+  {
+    const limpio2 = textoLimpio(original);
+    if (/^(una pregunta|tengo una pregunta|tengo una dudas?|una duda|tengo dudas|puedo preguntar|puedo hacerte una pregunta|te puedo preguntar algo|una consulta|disculpa|disculpe|oye|perdon que moleste)\b/.test(limpio2)) {
+      return "¡Claro que sí! 😊 Cuéntame tu pregunta y te respondo enseguida.";
+    }
   }
 
   // Cortesías sueltas (gracias, ok, listo...): respuesta amable sin pasar por la IA.
