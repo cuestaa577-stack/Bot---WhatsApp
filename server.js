@@ -857,7 +857,7 @@ function esPreguntaPrecio(texto) {
 
 function esPreguntaHorario(texto) {
   const t = normalizar(texto);
-  return /horario|hora de atencion|estan atendiendo|estan abiertos|abren|cierran|hasta que hora/.test(
+  return /horario|hora de atencion|a que hora (atienden|abren|cierran|trabajan)|estan atendiendo|atienden (hoy|ahora|domingo|sabado|feriado)|estan abiertos|estan disponibles|abren|cierran|hasta que hora|que dias atienden|atienden los/.test(
     t
   );
 }
@@ -883,12 +883,12 @@ function esPreguntaOficina(texto) {
 
 function esPreguntaLegal(texto) {
   const t = normalizar(texto);
-  return /es legal|son legales|totalmente legales/.test(t);
+  return /es legal|son legales|totalmente legales|es confiable|son confiables|confiable esto|es de confiar|se puede confiar|es real|es verdad|es serio|son serios|es formal|es fiable|es verdadero/.test(t);
 }
 
 function esPreguntaSeguridad(texto) {
   const t = normalizar(texto);
-  return /es seguro|es totalmente seguro|mis datos|datos protegidos|confidencial/.test(
+  return /es seguro|es totalmente seguro|esto es seguro|es segura|son seguros|mis datos|datos protegidos|confidencial|mi informacion|privacidad/.test(
     t
   );
 }
@@ -1088,7 +1088,7 @@ function esPreguntaViajar(texto) {
 
 function esPreguntaSirveTramites(texto) {
   const t = normalizar(texto);
-  return /sirve para (?:hacer )?tramite|sirve para gestiones|usarlo para tramites/.test(t);
+  return /sirve para|me sirve|puedo usarlo|puedo usarla|para que sirve|lo aceptan|la aceptan|es valido|es valida|tiene validez|vale para|funciona para|usarlo para|usarla para/.test(t);
 }
 
 function esPreguntaSeVeIgual(texto) {
@@ -1128,13 +1128,21 @@ function esPreguntaEnvioCasa(texto) {
 
 function esPreguntaComoLlega(texto) {
   const t = normalizar(texto);
-  return /como me llega|como me lo envian|como llega|como lo recibo|como me lo hacen llegar/.test(t);
+  return (
+    /como me llega|como me lo envian|como llega|como lo recibo|como me lo hacen llegar/.test(t) ||
+    // "como es la entrega", "como lo entregan", "como seria la entrega", "como me lo mandan", "por donde me lo envian"
+    /\b(como|de que forma|de que manera|por donde|por que medio|que medio)\b.*\b(entrega|entregan|entregas|entregarian|entregaria|envian|envian|mandan|mandas|envias|enviaran|llega|llegaria|recibo|recibiria|reciben|hacen llegar)\b/.test(t) ||
+    /\b(forma|metodo|modo|medio|manera) de (la )?(entrega|envio)\b/.test(t) ||
+    /^(y )?(la |el )?(entrega|envio)\b/.test(t.trim()) ||
+    /\b(como|cuando|donde) (es|seria|son) (la |el )?(entrega|envio)\b/.test(t) ||
+    /\b(como|cual) (es|seria|son) (la |el |las )?(entrega|envio)\b/.test(t)
+  );
 }
 
 function esPreguntaFisicoDigital(texto) {
   const t = normalizar(texto);
   return (
-    /fisico o digital|fisico o pdf|es fisico|digital o pdf|entregan fisico/.test(t) ||
+    /fisico o digital|fisico o pdf|es fisico|digital o pdf|entregan fisico|^(y )?(en )?(fisico|papel|impreso)\??$|en fisico|en papel|impreso|copia fisica|lo imprimen|me lo imprimen/.test(t) ||
     /entregan? (?:los? )?documentos? (?:en )?fisico|lo (?:entregan|entrega|hacen) (?:en )?fisico|entrega fisica|entrega en fisico|lo entregan personal|en persona/.test(
       t
     )
@@ -1148,7 +1156,7 @@ function esPreguntaOtroPais(texto) {
 
 function esPreguntaPagarAntes(texto) {
   const t = normalizar(texto);
-  return /pagar antes|por adelantado|antes de ver el documento|pagar sin ver|pagar primero/.test(t);
+  return /pagar antes|por adelantado|antes de ver el documento|pagar sin ver|pagar primero|pagar despues|pago despues|cuando pago|cuando se paga|pago al final|pago al recibir|pago contra entrega|pagar al recibir|tengo que pagar antes|primero pago/.test(t);
 }
 
 function esPreguntaNoMeGusta(texto) {
@@ -2115,7 +2123,7 @@ function respuestaSeguraGestor() {
 }
 
 function respuestaNoDisponible() {
-  return "¡Hola! 😊 Con gusto te ayudo con trámites de documentos venezolanos (cédula, licencia, antecedentes). Escribe *menú* para ver las opciones o cuéntame qué necesitas.";
+  return "Con gusto te ayudo. 😊 No logré entender bien tu consulta: ¿me la puedes escribir de otra forma? También puedes escribir *menú* para ver los trámites disponibles, o *asesor* si prefieres que un gestor te atienda.";
 }
 
 function respuestaIAValida(texto) {
@@ -2413,6 +2421,9 @@ async function responder(numero, texto, esAdmin = false) {
 
     if (
       contieneSaludo(limpio) ||
+      /^(necesito|quiero|requiero|busco|me pueden|me puedes|me podrias|me podrian|pueden|puedes|podrias|podrian)?\s*(una )?(ayuda|ayudar|ayudarme|orientacion|orientarme|asesoria|informacion|info)\b/.test(limpio) ||
+      /^(quiero saber|quisiera saber|me gustaria saber|necesito saber|quiero conocer|que (servicios|tramites) (tienen|hacen|ofrecen)|que ofrecen|que hacen|de que se trata|que es esto|como es esto|como es eso)\b/.test(limpio) ||
+      /^(gracias|muchas gracias|ok gracias|vale gracias|listo gracias)\b/.test(limpio) && false ||
       /\b(mas )?informacion\b/.test(limpio) ||
       /^(quiero|necesito|deseo|quisiera|me gustaria)?\s*(mas )?informaci[oó]n\b/.test(t) ||
     /^(soy|somos) (venezolan[oa]s?|de venezuela)\b/.test(t) ||
@@ -2594,6 +2605,26 @@ async function responder(numero, texto, esAdmin = false) {
   // FAQ.
   if (/^9$/.test(t)) {
     return "📋 Pregúntame directamente lo que necesitas y te responderé solo esa pregunta.";
+  }
+
+  // Cortesías sueltas (gracias, ok, listo...): respuesta amable sin pasar por la IA.
+  {
+    const limpio = textoLimpio(original);
+    if (/^(muchas )?gracias( .*)?$|^(ok|okay|okey|oki|listo|vale|perfecto|entendido|dale|de acuerdo|excelente|genial|super|bien|bueno)( gracias)?$/.test(limpio)) {
+      return "¡Con gusto! 😊 Si necesitas algo más, aquí estoy. Escribe *menú* para ver los trámites disponibles.";
+    }
+  }
+
+  // Perdida / robo / deterioro / vencimiento sin decir "cédula": se asume cédula.
+  {
+    const motivoSuelto = detectarMotivo(original);
+    if (motivoSuelto && !/licencia|antecedente|pasaporte/.test(t)) {
+      actualizarSesion(numero, { procedimiento: "cedula", motivo: motivoSuelto });
+      if (!PRICE_QUOTES_ENABLED) {
+        return `Entendido: cédula por ${motivoSuelto}. Un asesor puede orientarte sobre el trámite correspondiente.`;
+      }
+      return cotizacion(numero, obtenerSesion(numero));
+    }
   }
 
   // Preguntas abiertas: Groq solo si hace falta.
