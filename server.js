@@ -51,6 +51,22 @@ app.use((req, res, next) => {
 // ============================================================
 
 const PORT = process.env.PORT || 10000;
+
+// CLAVE DEL PANEL: si está definida en el entorno (PANEL_CLAVE), las páginas
+// /qr, /pair, /estado y /selftest exigen ?clave=... correcta. Así nadie que
+// encuentre la URL puede escanear el QR y robarse la sesión del bot.
+const PANEL_CLAVE = String(process.env.PANEL_CLAVE || "").trim();
+
+function panelAutorizado(req) {
+  if (!PANEL_CLAVE) return true; // sin clave configurada no se bloquea nada
+  const dada = String(req.query.clave || req.query.k || req.query.key || "").trim();
+  return dada === PANEL_CLAVE;
+}
+
+function panelDenegado(res) {
+  res.status(403);
+  res.send("Acceso no autorizado. Agrega ?clave=TU_CLAVE a la URL (definela en la variable PANEL_CLAVE).");
+}
 // Baileys: conexión por CÓDIGO QR (sin API de Meta).
 const BOT_NAME = process.env.BOT_NAME || "Bot Tramites";
 const AUTH_DIR = process.env.AUTH_DIR || path.join(__dirname, "auth_baileys");
@@ -3272,6 +3288,7 @@ app.get("/health", (req, res) => {
 
 // Página para escanear el código QR desde el teléfono.
 app.get("/estado", (req, res) => {
+  if (!panelAutorizado(req)) return panelDenegado(res);
   const base =
     "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1a3a;color:#fff;margin:0;padding:1.5rem;min-height:100vh;box-sizing:border-box";
   const card = "max-width:560px;margin:0 auto;background:#122348;border-radius:18px;padding:1.6rem";
@@ -3301,6 +3318,7 @@ app.get("/estado", (req, res) => {
 });
 
 app.get("/qr", async (req, res) => {
+  if (!panelAutorizado(req)) return panelDenegado(res);
   // Sin caché: el navegador SIEMPRE pide el QR más reciente (nunca uno viejo).
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   res.set("Pragma", "no-cache");
@@ -3335,6 +3353,7 @@ app.get("/qr", async (req, res) => {
 // Prueba de envío: verifica que el bot puede mandar mensajes de WhatsApp.
 // Uso: /selftest  (manda al número del bot/admin)  o  /selftest?to=584141234567
 app.get("/selftest", async (req, res) => {
+  if (!panelAutorizado(req)) return panelDenegado(res);
   if (estadoConexion !== "conectado" || !sock) {
     return res.status(503).json({ ok: false, error: "El bot no está conectado." });
   }
@@ -3355,6 +3374,7 @@ app.get("/selftest", async (req, res) => {
 
 // Página para vincular con el CÓDIGO por número (más confiable que el QR).
 app.get("/pair", async (req, res) => {
+  if (!panelAutorizado(req)) return panelDenegado(res);
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
