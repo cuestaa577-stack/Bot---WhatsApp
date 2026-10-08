@@ -1596,6 +1596,7 @@ function solicitudYaTomadaPorGestor(numero) {
 }
 
 async function responderConIA(numero, texto) {
+  _ultimoTextoCliente = String(texto || "");
   if (!GROQ_API_KEY) return respuestaNoDisponible();
 
   const s = obtenerSesion(numero);
@@ -1712,7 +1713,7 @@ Si las instrucciones anteriores no contienen la información necesaria para cont
       e.response?.status,
       e.response?.data ? JSON.stringify(e.response.data) : e.message
     );
-    return "No pude procesar esa pregunta en este momento. Si quieres, te comunico con un asesor.";
+    return respuestaPorTema(texto) || "No pude procesar esa pregunta en este momento. Si quieres, te comunico con un asesor.";
   }
 }
 
@@ -2144,7 +2145,36 @@ function respuestaSeguraGestor() {
   return "De acuerdo. 👍 Ya le digo a un gestor que te contacte y te envíe los requisitos correspondientes para tu trámite.";
 }
 
+// RED DE SEGURIDAD: cuando la IA no está disponible, falla o su respuesta es
+// rechazada por el filtro, se reconoce el TEMA del mensaje con palabras clave y
+// se responde algo coherente. Solo pide aclaración si no reconoce nada.
+let _ultimoTextoCliente = "";
+function respuestaPorTema(texto) {
+  const t = normalizar(texto);
+  if (!t) return null;
+  const temas = [
+    [/(cuanto|precio|costo|vale|valor|tarifa|cobran|cuesta)/, "El valor depende del trámite y de tu país. 😊 Dime cuál necesitas (cédula, licencia o antecedentes) y te confirmo el precio exacto. También puedes escribir *menú*."],
+    [/(cuanto demora|cuanto tarda|tiempo|demora|tarda|cuando llega|cuando lo recibo|plazo|rapido|urgente|urgencia|hoy mismo)/, "Los tiempos los confirma el gestor según tu caso, y si tienes urgencia se prioriza. ⏱️ ¿Quieres que te ponga con uno ahora? Responde *SÍ* o escribe *asesor*."],
+    [/(requisito|que necesito|que documentos|que piden|papeles|que debo llevar|que datos)/, "Con gusto te explico lo que se necesita. 📋 Dime qué trámite quieres hacer (cédula, licencia o antecedentes) y te digo los datos que debes enviar, o escribe *menú*."],
+    [/(pago|pagar|pagaria|transferencia|nequi|bancolombia|deposito|abono|forma de pago|metodo)/, "Solo pagas *después* de ver y aprobar la muestra de tu documento. 💳 Antes de eso no pagas nada."],
+    [/(confiable|seguro|segura|estafa|fraude|real|legal|de verdad|garantia|funciona)/, "Entiendo tu duda, es normal. 😊 Por eso solo pagas después de ver y aprobar la muestra de tu documento. Si no estás conforme, no pagas."],
+    [/(donde|ubicacion|oficina|direccion|presencial|sede|ciudad)/, "Todo el trámite se hace de forma *virtual*, por este chat, sin que tengas que ir a ninguna oficina. 📲"],
+    [/(venezolano|venezuela|extranjero|migrante|soy de|vivo en|resido)/, "¡Claro que sí! 🇻🇪 Atendemos a venezolanos en Colombia, Chile y Ecuador. Escribe *menú* y te muestro los trámites disponibles."],
+    [/(sirve|valido|valida|validez|oficial|me sirve|sirve para|puedo usarlo|acepta)/, "El documento se elabora con tu información real. ✅ Si quieres confirmar detalles de su uso en tu caso, un gestor te explica por aquí. ¿Te paso con uno?"],
+    [/(muestra|ejemplo|como queda|como se ve|ver el documento)/, "Claro, antes de pagar un gestor te envía una *muestra* de tu documento para que la revises. ¿Te interesa verla? Responde *SÍ*."],
+    [/(duplicado|perdi|perdida|extravi|robaron|hurto|deteriorad|renov|vencid|vencio|caduc)/, "Lamento la situación. 😕 Puedo ayudarte con eso. Escribe *menú* y elige la opción de tu caso, o dime qué le pasó a tu documento."],
+    [/(cedula|licencia|antecedente|c\.?i\b|documento|tramite|papel)/, "Con gusto te ayudo con eso. 😊 Escribe *menú* para ver las opciones o dime cuál trámite necesitas (cédula, licencia o antecedentes)."],
+    [/(gracias|vale|listo|ok|bien|perfecto|excelente|genial|buenisimo)/, "¡Con gusto! 😊 Si necesitas algo más, aquí estoy. Escribe *menú* para ver los trámites."],
+    [/(no entiendo|no comprendo|explicame|explica|que significa|como asi|que quiere decir)/, "Te lo explico más sencillo: hacemos tus trámites de forma virtual. Un gestor te envía una muestra, tú la revisas y solo pagas si te gusta. ¿Qué trámite necesitas? Escribe *menú* para verlos."],
+    [/(asesor|gestor|persona|humano|agente|hablar con|atienda)/, "¡Claro! En un momento te comunico con un gestor. 😊"],
+  ];
+  for (const [re, resp] of temas) if (re.test(t)) return resp;
+  return null;
+}
+
 function respuestaNoDisponible() {
+  const porTema = respuestaPorTema(_ultimoTextoCliente);
+  if (porTema) return porTema;
   return "Con gusto te ayudo. 😊 No logré entender bien tu consulta: ¿me la puedes escribir de otra forma? También puedes escribir *menú* para ver los trámites disponibles, o *asesor* si prefieres que un gestor te atienda.";
 }
 

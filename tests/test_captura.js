@@ -100,18 +100,21 @@ async function enviarMensaje(numero, texto) {
   await esperar(500);
 
   const casos = [
-    ["1y5","1y5"],
-    ["1 y 5","1 y 5"],
-    ["1 y 2","1 y 2"],
-    ["1,5","1,5"],
-    ["1 5","1 5"],
-    ["la 1 y la 5","la 1 y la 5"],
-    ["quiero la 1 y la 5","quiero la 1 y la 5"],
-    ["5 y 6","5 y 6"],
-    ["1 y 7","1 y 7"],
-    ["renovacion y licencia","renovacion y licencia"],
-    ["cedula y licencia","cedula y licencia"],
-    ["1 y 9","1 y 9"]
+    ["donde queda la oficina?","donde queda la oficina?"],
+    ["eso es seguro?","eso es seguro?"],
+    ["me sirve para trabajar?","me sirve para trabajar?"],
+    ["que documentos piden?","que documentos piden?"],
+    ["cuanto tardan?","cuanto tardan?"],
+    ["soy venezolano en chile","soy venezolano en chile"],
+    ["puedo pagar por nequi?","puedo pagar por nequi?"],
+    ["necesito urgente mi cedula","necesito urgente mi cedula"],
+    ["me robaron mi documento","me robaron mi documento"],
+    ["como asi?","como asi?"],
+    ["esto es legal?","esto es legal?"],
+    ["tienen sede en bogota?","tienen sede en bogota?"],
+    ["y eso para que sirve","y eso para que sirve"],
+    ["quiero hablar con una persona","quiero hablar con una persona"],
+    ["xyz qwerty","xyz qwerty"]
   ];
 
   let numero = 573001112233;
