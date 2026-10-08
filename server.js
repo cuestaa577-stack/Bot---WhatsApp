@@ -396,6 +396,8 @@ function normalizar(v) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[¡¿]/g, "")
+    .replace(/^[^a-z0-9]+/, "")
     .replace(/\s+/g, " ");
 }
 
@@ -1546,7 +1548,8 @@ REGLA PRINCIPAL DE CONOCIMIENTO:
 - Las instrucciones son la fuente de verdad. No uses conocimiento general, memoria del modelo, suposiciones, internet ni información externa para completar respuestas.
 - Puedes reformular, resumir o explicar con otras palabras algo que sí esté en las instrucciones, pero NO puedes agregar datos nuevos.
 - Si la pregunta es sobre un trámite/servicio pero la respuesta exacta no está en las instrucciones, dilo claramente y ofrece comunicar al cliente con un asesor.
-- Si la pregunta no tiene relación con los trámites o servicios configurados, responde EXACTAMENTE con este mensaje, sin agregar nada más: "Lo siento, pero solo atiendo gestiones de trámites y asesorías a venezolanos, está es una plataforma de trámites virtuales para venezolanos."
+- Si el cliente saluda, dice que es venezolano, pide información general o escribe algo ambiguo, NUNCA lo rechaces: dale la bienvenida con calidez y ofrécele el menú de trámites o pregunta qué necesita.
+- Solo si la pregunta es CLARAMENTE ajena a los trámites o servicios configurados (por ejemplo recetas, deportes, otros países como emisores del documento), responde EXACTAMENTE con este mensaje, sin agregar nada más: "Lo siento, pero solo atiendo gestiones de trámites y asesorías a venezolanos, está es una plataforma de trámites virtuales para venezolanos."
 - Si la pregunta del cliente trata de alguno de los temas de la sección PREGUNTAS Y RESPUESTAS FRECUENTES OFICIALES, respóndela con esa información aunque esté escrita de otra forma. Nunca respondas que no entendiste si el tema está cubierto.
 - Nunca inventes precios, requisitos, documentos, tiempos, oficinas, citas, procedimientos, disponibilidad o condiciones.
 - Nunca conviertas una inferencia tuya en una instrucción del administrador.
@@ -1609,7 +1612,7 @@ INSTRUCCIONES VIGENTES DEL ADMINISTRADOR:
 ${instruccionesVigentes}
 
 IMPORTANTE:
-Si las instrucciones anteriores no contienen la información necesaria para contestar, NO LA INVENTES. En ese caso responde EXACTAMENTE con este mensaje, sin agregar nada más: "Lo siento, pero solo atiendo gestiones de trámites y asesorías a venezolanos, está es una plataforma de trámites virtuales para venezolanos." Solo si la pregunta es sobre un trámite vigente pero falta un detalle, ofrece comunicarlo con un asesor.`;
+Si las instrucciones anteriores no contienen la información necesaria para contestar, NO LA INVENTES. Si es un saludo o una consulta general, ofrece el menú de trámites. Si es CLARAMENTE ajena a los trámites, responde EXACTAMENTE con este mensaje, sin agregar nada más: "Lo siento, pero solo atiendo gestiones de trámites y asesorías a venezolanos, está es una plataforma de trámites virtuales para venezolanos." Solo si la pregunta es sobre un trámite vigente pero falta un detalle, ofrece comunicarlo con un asesor.`;
 
 
 
@@ -2080,7 +2083,7 @@ function respuestaSeguraGestor() {
 }
 
 function respuestaNoDisponible() {
-  return "Lo siento, pero solo atiendo gestiones de trámites y asesorías a venezolanos, está es una plataforma de trámites virtuales para venezolanos.";
+  return "¡Hola! 😊 Con gusto te ayudo con trámites de documentos venezolanos (cédula, licencia, antecedentes). Escribe *menú* para ver las opciones o cuéntame qué necesitas.";
 }
 
 function respuestaIAValida(texto) {
@@ -2375,7 +2378,9 @@ async function responder(numero, texto, esAdmin = false) {
   // genérico de información, muestra el menú directamente.
   if (
     /^(hola+|ola+|buenos? d[ií]as?|buenas tardes|buenas noches|buenas|saludos|hey|que tal)\b/.test(t) ||
-    /^(quiero|necesito|deseo|me gustaria|quisiera)?\s*(mas )?informaci[oó]n$/.test(t)
+    /^(quiero|necesito|deseo|me gustaria|quisiera)?\s*(mas )?informaci[oó]n\b/.test(t) ||
+    /\b(quiero|necesito|deseo|quisiera|me gustaria)\b.*\b(mas )?informacion\b/.test(t) ||
+    /^(soy|somos) (venezolan[oa]s?|de venezuela)\b/.test(t)
   ) {
     return MENU;
   }
