@@ -1212,7 +1212,7 @@ function esPreguntaConsultarCedula(texto) {
 
 function esPreguntaMuestra(texto) {
   const t = normalizar(texto);
-  return /una muestra|ver la muestra|ver una muestra|muestrame|ensename|un ejemplo|ver un ejemplo|como se ve|muestrame un ejemplo|me pasas una muestra|fotos de ejemplo|muestras\b/.test(t);
+  return !/menu/.test(t) && /una muestra|ver la muestra|ver una muestra|muestrame|ensename|un ejemplo|ver un ejemplo|como se ve|muestrame un ejemplo|me pasas una muestra|fotos de ejemplo|muestras\b/.test(t);
 }
 
 function esPreguntaPapelImpresion(texto) {
@@ -2520,7 +2520,7 @@ async function responder(numero, texto, esAdmin = false) {
   }
 
   // Menú.
-  if (/^(menu|menú|opciones|inicio|volver|atras|atrás)$/.test(t)) {
+  if (/^(menu|menú|opciones|inicio|volver|atras|atrás)$/.test(t) || /(el |ver )?menu( por favor)?$/.test(t) || /^(mu[eé]strame|ens[eé]ñame|m[aá]ndame|dame|quiero ver) el menu$/.test(t) || /^(volver|regresar|regresa|atras|atras|vuelve) (al )?menu$/.test(t)) {
     actualizarSesion(numero, { estado: null });
     return MENU;
   }
@@ -2789,6 +2789,14 @@ async function responder(numero, texto, esAdmin = false) {
     const tHorario = normalizar(original);
     if (/(trabajan (los )?(domingos|sabados|festivos|hoy)|horario|a que hora|atienden|esta abierto|abren|estan abiertos|hoy es festivo)/.test(tHorario)) {
       return "¡Atendemos todos los días! 😊 Los gestores responden durante el día y este chat está disponible 24/7. Escríbeme cuando quieras, sin problema.";
+    }
+  }
+
+  // "¿Y si me lo mandan mal?" -> garantía de la muestra, no hay riesgo.
+  {
+    const tMalo = normalizar(original);
+    if (/(lo mandan mal|manden mal|quedo mal|salio mal|quedo feo|se ve mal|tiene errores|tiene un error|viene mal|esta defectuoso|no quedo bien|mal hecho)/.test(tMalo)) {
+      return "Por eso existe la *muestra*: antes de pagar revisas el documento completo y solo continuas si todo está perfecto. Si algo no te gusta, se corrige. Y si no estás conforme, no pagas. ✅";
     }
   }
 
@@ -3556,6 +3564,21 @@ async function procesarMensajeEntrante(msg) {
       return;
     }
     texto = transcripcion;
+  } else if (m.imageMessage || m.videoMessage) {
+    // Foto o video sin texto: suele ser un comprobante o documento.
+    if (esAdministrador(numero)) return;
+    await enviar(
+      numero,
+      "¡Recibido! 📸 Un gestor revisará lo que me enviaste y te escribe enseguida por aquí mismo."
+    );
+    const sFoto = obtenerSesion(numero) || crearSesion(numero);
+    registrarEtapaCliente(numero, "ENVIÓ IMAGEN");
+    await avisarAsesor(numero, sFoto, "IMAGEN RECIBIDA");
+    return;
+  } else if (m.stickerMessage) {
+    if (esAdministrador(numero)) return;
+    await enviar(numero, "😄 ¡Buen sticker! Si tienes alguna consulta sobre tu documento, escríbeme por texto y te respondo al instante.");
+    return;
   } else if (!texto) {
     if (esAdministrador(numero)) return;
     await enviar(
