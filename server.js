@@ -2609,8 +2609,25 @@ async function transcribirAudio(msg) {
 // el bot le escribe una vez para retomar la conversación.
 // ============================================================
 
-const SEGUIMIENTO_MINUTOS = 30;
+const SEGUIMIENTO_MINUTOS = Number(process.env.SEGUIMIENTO_MINUTOS || 30);
 const seguimientosPendientes = new Map();
+
+// Estados de sesión que significan "conversación cerrada o en manos del
+// gestor": en ellos NO se programa ningún seguimiento automático.
+const ESTADOS_SIN_SEGUIMIENTO = new Set([
+  "cierre_pendiente",
+  "cierre_gestor_avisado",
+  "post_cierre_atento",
+]);
+
+// Etapas de cliente que significan "ya no insistir": acuerdo cerrado o
+// desinterés. Se limpian cuando la persona vuelve a preguntar algo.
+const ETAPAS_SIN_SEGUIMIENTO = new Set([
+  "NO INTERESADO",
+  "CONVERSACIÓN FINALIZADA",
+  "SOLICITÓ GESTOR",
+  "ESPERA MUESTRA DEL GESTOR",
+]);
 
 function cancelarSeguimiento(numero) {
   const pendiente = seguimientosPendientes.get(numero);
@@ -2620,11 +2637,58 @@ function cancelarSeguimiento(numero) {
   }
 }
 
+// ¿La conversación ya está cerrada (acuerdo) o el cliente perdió el interés?
+// En cualquiera de esos casos NO se le debe volver a escribir solo.
+function conversacionSinSeguimiento(numero) {
+  const n = String(numero || "").replace(/\D/g, "");
+  const s = sesiones.get(n);
+  if (s && ESTADOS_SIN_SEGUIMIENTO.has(s.estado)) return true;
+
+  const c = clientes.get(n);
+  if (c && ETAPAS_SIN_SEGUIMIENTO.has(c.etapa)) return true;
+
+  return false;
+}
+
+// Detecta un rechazo / desinterés expresado en texto libre, para no insistir.
+function esDesinteresCliente(texto) {
+  const t = normalizar(texto).replace(/[.!?,;:]+$/g, "").trim();
+  if (!t) return false;
+
+  // Rechazo explícito y corto.
+  if (/^(no|no gracias|no,? gracias|cancelar|cancelo|mejor no|ya no|baja|stop|no molestar)$/.test(t)) {
+    return true;
+  }
+
+  // Frases claras de desinterés.
+  return /(no me interesa|no estoy interesad[oa]|no por ahora|no por el momento|no me escribas|no me escriba|no insistas|no me molestes|dejame en paz|d[eé]jame tranquilo|ya no (quiero|me interesa|deseo|necesito)|no quiero nada|no quiero continuar|no quiero seguir|no quiero el tr[aá]mite)/.test(
+    t
+  );
+}
+
+// Si la persona vuelve a preguntar algo real, se reactiva el flujo: se limpia
+// la etapa terminal para permitir un nuevo seguimiento si luego queda callada.
+function reactivarSeguimiento(numero) {
+  const n = String(numero || "").replace(/\D/g, "");
+  const c = clientes.get(n);
+  if (c && ETAPAS_SIN_SEGUIMIENTO.has(c.etapa)) {
+    registrarEtapaCliente(numero, "REACTIVADO");
+  }
+}
+
 function programarSeguimiento(numero) {
   cancelarSeguimiento(numero);
 
   const timer = setTimeout(async () => {
     seguimientosPendientes.delete(numero);
+
+    // Guarda final: aunque el temporizador haya disparado, si la conversación
+    // ya se cerró o el cliente perdió el interés, NO se envía nada.
+    if (conversacionSinSeguimiento(numero)) {
+      console.log("⏭️ Seguimiento omitido (acuerdo cerrado o sin interés): +" + numero);
+      return;
+    }
+
     try {
       await enviar(
         numero,
@@ -3106,12 +3170,31 @@ async function procesarMensajeEntrante(msg) {
   }
 
   // Seguimiento automático: 30 minutos de silencio tras una consulta real.
+  // PERO nunca cuando la persona ya cerró un acuerdo o mostró desinterés:
+  // en esos casos el bot no le vuelve a escribir hasta que ella pregunte algo.
   if (!esAdmin) {
     const soloMenuOSaludo =
       /^(hola|holaa|buenas|buenos dias|buen dia|buenas tardes|buenas noches|saludos|hey|menu|menú|opciones|inicio|volver|atras|atrás)$/i.test(
         texto
       );
-    if (!soloMenuOSaludo) programarSeguimiento(numero);
+
+    const desinteres = esDesinteresCliente(texto);
+    const toquePostCierre = esToqueAtencionPostCierre(texto);
+
+    if (desinteres) {
+      // El cliente dijo que no le interesa: se marca y no se le insiste más.
+      registrarEtapaCliente(numero, "NO INTERESADO");
+      cancelarSeguimiento(numero);
+    } else if (!soloMenuOSaludo && !toquePostCierre) {
+      // El cliente hizo una consulta real: si venía de un cierre o de un
+      // desinterés, se reactiva el flujo; y se programa el seguimiento normal.
+      reactivarSeguimiento(numero);
+      if (!conversacionSinSeguimiento(numero)) programarSeguimiento(numero);
+      else cancelarSeguimiento(numero);
+    } else {
+      // Solo saludo/menú o un "toque" genérico tras el cierre: no se insiste.
+      cancelarSeguimiento(numero);
+    }
   }
 }
 
