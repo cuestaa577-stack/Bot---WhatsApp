@@ -2248,6 +2248,16 @@ async function responder(numero, texto, esAdmin = false) {
     }
   }
 
+  // Cancelación global ("mejor olvídelo", "déjalo así"): funciona en
+  // cualquier punto de la conversación, no solo en un estado concreto.
+  {
+    const tCanc = normalizar(original);
+    if (/(mejor |ya )?(olvidalo|olv[ií]dalo|deja[lo]? asi|cancela|cancelo|ya no quiero|no insisto|no quiero nada)/.test(tCanc)) {
+      actualizarSesion(numero, { estado: "post_cierre_atento" });
+      return "Sin problema. 😊 Quedo por aquí por si más adelante necesitas tu documento.";
+    }
+  }
+
   // Si la persona retoma el trámite o confirma, se cancela lo programado.
   {
     const s0 = obtenerSesion(numero);
@@ -2289,6 +2299,23 @@ async function responder(numero, texto, esAdmin = false) {
 
   if (s.estado === "pedir_nombre_referido") {
     const nombreReferido = original.replace(/[.,;!?]+$/g, "").trim();
+    const tRef = normalizar(original);
+
+    // Se arrepintió del descuento o del trámite: no registrar basura como nombre.
+    if (/(no quiero|mejor no|olv[ií]da|cancela|no me interesa|nada|paso|lo dejo|no insisto)/.test(tRef)) {
+      const previoCancel =
+        s.estadoPrevio === "confirmar_muestra" || s.estadoPrevio === "confirmar_continuar"
+          ? s.estadoPrevio
+          : null;
+      actualizarSesion(numero, { estado: previoCancel, estadoPrevio: null });
+      if (previoCancel === "confirmar_muestra") {
+        return "No pasa nada. 😊 ¿Te interesaría ver una *MUESTRA* del documento? Responde *SÍ* o *NO*.";
+      }
+      if (previoCancel === "confirmar_continuar") {
+        return "No pasa nada. 😊 ¿Deseas continuar con el trámite? Responde *SÍ* o *NO*.";
+      }
+      return "No pasa nada. 😊 Si más adelante quieres el descuento o el trámite, escríbeme por aquí.";
+    }
 
     if (!nombreReferido || nombreReferido.length > 60 || /^(no|no se|no sé)$/i.test(normalizar(nombreReferido))) {
       return "Escríbeme el nombre de la persona que nos recomiendas para dejarlo registrado.";
@@ -2538,7 +2565,9 @@ async function responder(numero, texto, esAdmin = false) {
 
   // Cédula: opción 7 o número directo.
   if (
-    s.estado === "esperando_cedula" ||
+    (s.estado === "esperando_cedula" &&
+      !original.includes("?") &&
+      normalizar(original).split(" ").length <= 4) ||
     /^(?:[vVeE][\s.-]*)?\d[\d\s.-]{4,12}$/.test(original)
   ) {
     const cedula = soloDigitos(original);

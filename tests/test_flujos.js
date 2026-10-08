@@ -74,6 +74,12 @@ async function tanda(numero, textos) {
   // Flujo 6: cambiar de documento a mitad del estado grado
   const f6 = await tanda("573001110006", ["cuanto es la licencia", "cuanto es la cedula"]);
   check(/renovaci|extrav|hurto|deterioro|c[eé]dula es por/i.test(f6[1].out) && !/grado de licencia/i.test(f6[1].out), "Cede el paso a la cédula desde el estado grado", f6[1].out);
+  // Flujo 7: cancelar en mitad del descuento ("mejor no quiero el descuento")
+  const f7 = await tanda("573001110007", ["cuanto es la licencia", "3", "me sale descuento?", "mejor no quiero el descuento"]);
+  check(!/nombre de la persona que nos recomiendas/i.test(f7[3].out) || /MUESTRA|SÍ o NO/i.test(f7[3].out), "Arrepentirse del descuento no registra basura", f7[3].out);
+  // Flujo 8: cancelación global desde confirmar_muestra
+  const f8 = await tanda("573001110008", ["cuanto es la licencia", "3", "si", "mejor olvidalo"]);
+  check(/Sin problema/i.test(f8[3].out), "'Mejor olvídelo' en confirmar muestra cierra amable", f8[3].out);
   console.log(`Total: ${ok + fail} · PASS: ${ok} · FAIL: ${fail}`);
   process.exit(fail ? 1 : 0);
 })();
