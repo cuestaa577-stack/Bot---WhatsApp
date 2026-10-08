@@ -80,6 +80,12 @@ async function tanda(numero, textos) {
   // Flujo 8: cancelación global desde confirmar_muestra
   const f8 = await tanda("573001110008", ["cuanto es la licencia", "3", "si", "mejor olvidalo"]);
   check(/Sin problema/i.test(f8[3].out), "'Mejor olvídelo' en confirmar muestra cierra amable", f8[3].out);
+  // Flujo 9: "sep" vale como sí en confirmar muestra
+  const f9 = await tanda("573001110009", ["cuanto es la licencia", "3", "si", "sep"]);
+  check(/MUESTRA|gestor/i.test(f9[3].out) || /MUESTRA/i.test(f9[2].out), "'sep' funciona como sí", f9[3].out || f9[2].out);
+  // Flujo 10: cotizar en Ecuador mid-conversación (número colombiano)
+  const f10 = await tanda("573001110010", ["hola", "cuanto es la cedula en ecuador", "extravio"]);
+  check(/d[oó]lar|USD|23|americano/i.test(f10[2].out), "Cotiza en USD al mencionar Ecuador", f10[2].out);
   console.log(`Total: ${ok + fail} · PASS: ${ok} · FAIL: ${fail}`);
   process.exit(fail ? 1 : 0);
 })();

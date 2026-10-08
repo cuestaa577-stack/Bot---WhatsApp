@@ -2104,14 +2104,14 @@ function cotizacion(numero, s) {
 
 function esRespuestaSi(texto) {
   const t = normalizar(texto).replace(/[.!?,;:]+$/g, "").trim();
-  return /^(sip|sii|sisi|simon|si|si si quiero|si quiero|si claro|si estoy interesado|si estoy interesada|si mano|claro|dale|dale mi hermano|dale me gustaria|ok|okay|okey|esta bien|de acuerdo|vale|perfecto|genial|ya|confirmo|quiero|por supuesto)$/.test(
+  return /^(sip|sii|sisi|simon|si|sep|si si quiero|si quiero|si claro|claro que si|si estoy interesado|si estoy interesada|si mano|claro|dale|dale mi hermano|dale me gustaria|de una|ok|okay|okey|esta bien|de acuerdo|vale|perfecto|genial|ya|confirmo|quiero|por supuesto|listo|aja|aha)$/.test(
     t
   );
 }
 
 function esRespuestaNo(texto) {
   const t = normalizar(texto).replace(/[.!?,;:]+$/g, "").trim();
-  return /^(no|no gracias|cancelar|cancelo|mejor no)$/.test(t);
+  return /^(no|nop|nah|no gracias|cancelar|cancelo|mejor no|para nada)$/.test(t);
 }
 
 // FILTRO DE SEGURIDAD: el bot NUNCA debe listar pasos, documentos, requisitos
@@ -2173,6 +2173,14 @@ async function responder(numero, texto, esAdmin = false) {
   const t = normalizar(original);
 
   let s = obtenerSesion(numero);
+
+  // Si el cliente menciona un país en su mensaje, actualizar su país de
+  // sesión: "¿cuánto es la cédula en Ecuador?" debe cotizar en USD.
+  const paisMencionado = detectarPaisTexto(original);
+  if (paisMencionado && s?.pais !== paisMencionado) {
+    actualizarSesion(numero, { pais: paisMencionado });
+    s = obtenerSesion(numero);
+  }
 
   // Recuperar una conversación que quedó inactiva.
   const regreso = cerrarPorInactividad(numero);
@@ -2797,6 +2805,30 @@ async function responder(numero, texto, esAdmin = false) {
     const tMalo = normalizar(original);
     if (/(lo mandan mal|manden mal|quedo mal|salio mal|quedo feo|se ve mal|tiene errores|tiene un error|viene mal|esta defectuoso|no quedo bien|mal hecho)/.test(tMalo)) {
       return "Por eso existe la *muestra*: antes de pagar revisas el documento completo y solo continuas si todo está perfecto. Si algo no te gusta, se corrige. Y si no estás conforme, no pagas. ✅";
+    }
+  }
+
+  // "¿Cuál es el proceso?" / "¿cómo funciona?": pasos del trámite.
+  {
+    const tProc = normalizar(original);
+    if (/(cual es el proceso|el proceso|como funciona|como es el proceso|como funciona el tramite|de que se trata el proceso|explicame el proceso)/.test(tProc)) {
+      return "El proceso es sencillo: 1. Me confirmas el trámite que necesitas. 2. Un gestor te envía una *muestra* de tu documento. 3. La revisas y, si te parece bien, pagas. 4. Recibes tu documento en PDF de alta calidad, listo para imprimir. ✅";
+    }
+  }
+
+  // Piden llamada o redes: se canaliza al chat con el gestor.
+  {
+    const tLlamada = normalizar(original);
+    if (/(me pueden llamar|me llaman|una llamada|me pueden marcar|su numero|numero de telefono|por telefono|instagram|redes sociales|pagina web|facebook)/.test(tLlamada)) {
+      return "Preferimos atenderte por este mismo chat 📲 Así queda todo registrado. Un gestor te escribe por aquí enseguida y te comparte lo que necesites. 😊";
+    }
+  }
+
+  // "¿Y en dólares?": moneda local, el gestor confirma el cambio.
+  {
+    const tMoneda = normalizar(original);
+    if (/(en dolares|dolar|en usd|en euros|en soles|en bolivares|en pesos mexicanos|en zelle)/.test(tMoneda)) {
+      return "Los precios que te comparto son en la moneda local de tu país. 💱 Si quieres pagar en otra moneda, un gestor te confirma el cambio del día por este chat. ¿Quieres que te ponga con uno? 😊";
     }
   }
 
