@@ -2208,6 +2208,39 @@ async function responder(numero, texto, esAdmin = false) {
     return null;
   }
 
+  // Desinterés explícito: despedida amable y cero insistencia desde ya.
+  if (esDesinteresCliente(original)) {
+    cancelarSeguimiento(numero);
+    limpiarConfirmacionPendiente(numero);
+    return "Entiendo, sin problema. 😊 Aquí estaré cuando necesites tu documento. ¡Que tengas un " + saludoPorHora(numero, original) + "! 🙌";
+  }
+
+  // "Te confirmo el viernes / mañana / la próxima semana": el bot escribe
+  // UNA vez ese día y deja de mandar recordatorios automáticos hasta entonces.
+  {
+    const confir = detectarConfirmacionParaFecha(original);
+    if (confir) {
+      programarConfirmacion(numero, confir.fecha, confir.etiqueta);
+      registrarEtapaCliente(numero, "CONFIRMA PARA FECHA");
+      return `Perfecto 😊 Quedo pendiente: te escribo ${confir.etiqueta} para retomar tu trámite. No te escribiré antes de esa fecha. 📅`;
+    }
+  }
+
+  // Si la persona retoma el trámite o confirma, se cancela lo programado.
+  {
+    const s0 = obtenerSesion(numero);
+    if (s0 && s0.estado === "confirmacion_pendiente") {
+      const limpioC = textoLimpio(original);
+      if (
+        esIntencionTramite(original) ||
+        /(pago|pagar|transferencia|nequi|ya esta|ya hice|hice la|confirmo|vamos|adelante|empecemos|si quiero|manden|envien|mande|envie|envie los|aca esta|aqui esta|listo para|empezamos|continua)/.test(limpioC) ||
+        /^(si|claro|dale|ok|okey|okay|de acuerdo|perfecto)\b/.test(limpioC)
+      ) {
+        limpiarConfirmacionPendiente(numero);
+      }
+    }
+  }
+
 
   if (s.estado === "ofrecer_descuento") {
     if (esRespuestaSi(original)) {
@@ -2719,6 +2752,7 @@ const ESTADOS_SIN_SEGUIMIENTO = new Set([
   "cierre_pendiente",
   "cierre_gestor_avisado",
   "post_cierre_atento",
+  "confirmacion_pendiente",
 ]);
 
 // Etapas de cliente que significan "ya no insistir": acuerdo cerrado o
@@ -2729,6 +2763,149 @@ const ETAPAS_SIN_SEGUIMIENTO = new Set([
   "SOLICITÓ GESTOR",
   "ESPERA MUESTRA DEL GESTOR",
 ]);
+
+// ============================================================
+// CONFIRMACIÓN PARA UNA FECHA ("te confirmo el viernes", etc.)
+// El bot deja de enviar recordatorios automáticos y escribe UNA sola
+// vez el día que la persona dijo, ni un mensaje más antes de esa fecha.
+// ============================================================
+
+const DIAS_SEMANA = new Map([
+  ["domingo", 0], ["lunes", 1], ["martes", 2], ["miercoles", 3],
+  ["jueves", 4], ["viernes", 5], ["sabado", 6],
+]);
+
+function horaDelDiaEnBogota(base, hora) {
+  // 10:00 de America/Bogota del día correspondiente a `base` (UTC-5 fijo).
+  const d = new Date(base);
+  const y = d.getUTCFullYear(), m = d.getUTCMonth(), dd = d.getUTCDate();
+  // Bogotá es UTC-5 todo el año (sin horario de verano).
+  return new Date(Date.UTC(y, m, dd, 5 + Math.floor(hora), Math.round((hora % 1) * 60)));
+}
+
+function siguienteOcurrenciaDia(nombreDia, horaLocal = 10) {
+  const objetivo = DIAS_SEMANA.get(nombreDia);
+  if (objetivo === undefined) return null;
+  const ahora = Date.now();
+  for (let i = 0; i <= 7; i++) {
+    const fecha = horaDelDiaEnBogota(ahora + i * 86400000, horaLocal);
+    if (fecha.getTime() > ahora && fecha.getUTCDay() === objetivo) return fecha;
+  }
+  return null;
+}
+
+// Detecta si la persona quedó en "te confirmo el X". Devuelve {fecha, etiqueta} o null.
+function detectarConfirmacionParaFecha(texto) {
+  const t = normalizar(texto);
+  if (!t) return null;
+
+  const hayIntencion =
+    /(confirm|aviso|avisar|te digo|le digo|te escribo|me comunico|comunicarme|te llamo|llamar|te contesto|respondo|espera|dejo pendiente|hago el|hago la|realizo|inici|retomo|continuo|sigo con|pago|tengo|ando|sueldo|me pagan|cobro|nomina|viaje|viajo|viaja|cheque|reviso)/.test(t);
+  if (!hayIntencion) return null;
+
+  const tSinHora = t.replace(/(en|por|de|a|por la|desde la) la (manana|tarde|noche)\b/g, " ");
+  const hoy = new Date();
+  let fecha = null;
+  let etiqueta = "";
+
+  // Pasado mañana / mañana
+  if (/pasado manana/.test(tSinHora)) {
+    fecha = horaDelDiaEnBogota(hoy.getTime() + 2 * 86400000, 10);
+    etiqueta = "pasado mañana";
+  } else if (/\bmanana\b/.test(tSinHora)) {
+    fecha = horaDelDiaEnBogota(hoy.getTime() + 86400000, 10);
+    etiqueta = "mañana";
+  } else if (/(fin de semana|finde)/.test(tSinHora)) {
+    fecha = siguienteOcurrenciaDia("sabado", 10) || siguienteOcurrenciaDia("domingo", 10);
+    etiqueta = "el fin de semana";
+  } else if (/(proxima semana|otra semana|semana que viene)/.test(tSinHora)) {
+    fecha = siguienteOcurrenciaDia("lunes", 10);
+    etiqueta = "la próxima semana";
+  } else {
+    // Nombre de día: "el viernes", "para el lunes", "este jueves", "el proximo miercoles"
+    for (const [nombre, _] of DIAS_SEMANA) {
+      if (new RegExp("(el |este |proximo |proximo |para el |el proximo )?" + nombre).test(t)) {
+        fecha = siguienteOcurrenciaDia(nombre, 10);
+        etiqueta = "el " + nombre;
+        break;
+      }
+    }
+  }
+
+  if (!fecha) return null;
+  return { fecha, etiqueta };
+}
+
+const confirmacionesPendientes = new Map(); // numero -> { timer, fechaISO }
+
+function cancelarConfirmacionPendiente(numero) {
+  const pend = confirmacionesPendientes.get(numero);
+  if (pend) {
+    clearTimeout(pend.timer);
+    confirmacionesPendientes.delete(numero);
+  }
+}
+
+function programarConfirmacion(numero, fecha, etiqueta) {
+  cancelarConfirmacionPendiente(numero);
+  cancelarSeguimiento(numero);
+  actualizarSesion(numero, {
+    estado: "confirmacion_pendiente",
+    fechaConfirmacion: fecha.toISOString(),
+    fechaEtiqueta: etiqueta,
+  });
+
+  // En pruebas (CONFIRMACION_TEST_MS) se puede acortar la espera.
+  const ms = process.env.CONFIRMACION_TEST_MS
+    ? Number(process.env.CONFIRMACION_TEST_MS)
+    : fecha.getTime() - Date.now();
+  const timer = setTimeout(async () => {
+    confirmacionesPendientes.delete(numero);
+    const s = sesiones.get(numero);
+    // Solo se envía si nadie la canceló y la persona no volvió a confirmar antes.
+    if (!s || s.estado !== "confirmacion_pendiente") return;
+    s.estado = null;
+    delete s.fechaConfirmacion;
+    try {
+      await enviar(
+        numero,
+        "¡Hola! 😊 Como acordamos, hoy es el día en que ibas a confirmar tu trámite. ¿Seguimos adelante? Si quieres ver las opciones, escribe *menú*."
+      );
+      console.log("📅 Confirmación programada enviada a +" + numero);
+    } catch (e) {
+      console.error("Error enviando confirmación programada:", e.message);
+    }
+  }, Math.max(ms, 1000));
+
+  confirmacionesPendientes.set(numero, { timer, fechaISO: fecha.toISOString() });
+}
+
+// Si la persona cambia de fecha o retoma el trámite, se limpia lo pendiente.
+function limpiarConfirmacionPendiente(numero) {
+  cancelarConfirmacionPendiente(numero);
+  const s = sesiones.get(numero);
+  if (s && s.estado === "confirmacion_pendiente") {
+    s.estado = null;
+    delete s.fechaConfirmacion;
+    delete s.fechaEtiqueta;
+  }
+}
+
+// Al arrancar: reprogramar confirmaciones que quedaron pendientes (el servidor
+// puede reiniciarse; la sesión se recupera de Supabase/disco).
+function restaurarConfirmacionesPendientes() {
+  for (const [numero, s] of sesiones) {
+    if (s.estado !== "confirmacion_pendiente" || !s.fechaConfirmacion) continue;
+    const fecha = new Date(s.fechaConfirmacion);
+    if (isNaN(fecha.getTime())) continue;
+    if (fecha.getTime() > Date.now()) {
+      programarConfirmacion(numero, fecha, s.fechaEtiqueta || "el día acordado");
+    } else {
+      // Se pasó la fecha mientras el servidor estaba apagado: enviar ya.
+      programarConfirmacion(numero, new Date(Date.now() + 60000), s.fechaEtiqueta || "el día acordado");
+    }
+  }
+}
 
 function cancelarSeguimiento(numero) {
   const pendiente = seguimientosPendientes.get(numero);
@@ -3541,6 +3718,7 @@ process.on("SIGTERM", () => {
     console.error("No se pudo cargar sesiones de Supabase:", e.message);
   }
   cargarClientesDesdeDisco();
+  restaurarConfirmacionesPendientes();
 
   // Recupera la sesión de WhatsApp desde Supabase (si aplica) ANTES de conectar.
   try {
